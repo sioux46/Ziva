@@ -4,7 +4,10 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
+# --- Clé API Mistral ---
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+if not MISTRAL_API_KEY:
+    raise RuntimeError("MISTRAL_API_KEY n'est pas définie !")
 
 MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
 
@@ -12,18 +15,20 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # change en prod
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["http://ziva.local:8888/index.php",
+                    "https://www.siouxlog.fr/Ziva/index.php"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 class ChatRequest(BaseModel):
     messages: list
-    model: str = "mistral-medium-latest"
-    temperature: float = 0.7
+    model: str # = "mistral-large-latest"
+    temperature: float # = 0.7
 
 @app.post("/chat")
 def chat(req: ChatRequest):
+    # pdb.set_trace()  # <-- breakpoint ici
     headers = {
         "Authorization": f"Bearer {MISTRAL_API_KEY}",
         "Content-Type": "application/json"

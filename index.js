@@ -3,6 +3,15 @@
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
 var zivaVersion = "v6.01.23.1";
 
+// Exemple d'utilisation :
+const chatTestBuffer = [
+    { role: "system", content: "Vous êtes un assistant intelligent." },
+    { role: "user", content: "Bonjour, comment ça va ?" },
+    { role: "assistant", content: "Bonjour ! Je vais bien, merci. Et vous ?" },
+    { role: "user", content: "Très bien, merci !" }
+];
+
+////////
 async function askAssistant(message) {
   const response = await fetch("chatLLM_MISTRAL_L.php", {
     method: "POST",
@@ -20,7 +29,12 @@ async function askAssistant(message) {
 
 /////////
 async function sendToAI(chatBuffer) {
-    const response = await fetch("https://www.siouxlog.fr/api/chat", {
+    var url;
+    if ( window.location.href.lastIndexOf("8888") != -1 ) // si dans MAMP
+          // url = "http://127.0.0.1:8000/chat";
+          url = "http://ziva.local:8888/api/chat";
+    else  url = "https://www.siouxlog.fr/api/chat";
+    const response = await fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -36,17 +50,9 @@ async function sendToAI(chatBuffer) {
     return data.reply;
 }
 
-// Exemple d'utilisation :
-const chatBuffer = [
-    { role: "system", content: "Vous êtes un assistant intelligent." },
-    { role: "user", content: "Bonjour, comment ça va ?" },
-    { role: "assistant", content: "Bonjour ! Je vais bien, merci. Et vous ?" },
-    { role: "user", content: "Très bien, merci !" }
-];
-
 //////
 function test8000() {
-  sendToAI(chatBuffer).then(reply => {
+  sendToAI(chatTestBuffer).then(reply => {
     console.log("AI:", reply);
 });
 }
