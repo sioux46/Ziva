@@ -31,19 +31,14 @@ async function askAssistant(message) {
 async function sendToAI(chatBuffer) {
     var url;
     if ( window.location.href.lastIndexOf("8888") != -1 ) // si dans MAMP
-          // url = "http://127.0.0.1:8000/chat";
           url = "http://ziva.local:8888/api/chat";
     else  url = "https://www.siouxlog.fr/api/chat";
     const response = await fetch(url, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-            messages: chatBuffer,
-            model: "mistral-large-latest",
-            temperature: 0.7
-        })
+        body: JSON.stringify({ messages: chatBuffer })
     });
 
     const data = await response.json();
