@@ -1,7 +1,7 @@
 // index.js
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.01.23.1";
+var zivaVersion = "v6.02.04.1";
 
 // Exemple d'utilisation :
 const chatTestBuffer = [
