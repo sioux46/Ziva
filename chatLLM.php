@@ -87,9 +87,9 @@ if ($rate["c"] > 30) {
    5. Input size
 ───────────────────────────────────────────── */
 
-$sysMes = $_POST['sysMes'] ?? '';
+// $sysMes = $_POST['sysMes'] ?? '';
 $raw = $_POST['chatBuffer'] ?? '';
-if (strlen($raw) > 65536 || strlen($sysMes) > 65536 ) {
+if ( strlen($raw) > 65536 ) { // || strlen($sysMes) > 65536 ) {
     http_response_code(413);
     exit;
 }
@@ -107,8 +107,8 @@ if (count($messages) > 60) {
     exit;
 }
 
-$sysMes = json_decode($sysMes, true);
-if (!is_string($sysMes)) exit(400);
+// $sysMes = json_decode($sysMes, true);
+// if (!is_string($sysMes)) exit(400);
 
 /*─────────────────────────────────────────────
    7. Prompt firewall
