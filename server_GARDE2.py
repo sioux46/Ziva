@@ -79,7 +79,7 @@ async def chat(req: ChatRequest, request: Request, _=Depends(check_auth)):
         "max_tokens": 800
     }
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         r = await client.post(MISTRAL_URL, json=payload, headers=headers)
 
     if r.status_code != 200:
