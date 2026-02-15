@@ -22,15 +22,11 @@ let silenceTimer = null;
 // Buffer de phrase + détection du silence
 recognition.onresult = e => {
 
-  if( aiSpeaking ) {
+  if(aiSpeaking) {
     console.log("couper la parole");
     speechSynthesis.cancel();   // coupe la voix IA
-    if( xhrLLM ) {
-      xhrLLM.abort();           // stop Mistral
-      xhrLLM=null;
-    }
-    aiBusy = false; // autorise nouvelle requête
-    aiSpeaking = false;
+    xhrLLM.abort();             // coupe Mistral
+    aiSpeaking=false;
   }
 
 
@@ -68,8 +64,7 @@ function speak(text){
   u.lang="fr-FR";
 
   u.onend = ()=>{
-    aiSpeaking=false;
-    if(micEnabled) recognition.start(); // micro ON après
+     if(micEnabled) recognition.start(); // micro ON après
   };
 
   synth.cancel(); // stop ancien audio
@@ -85,7 +80,7 @@ function resetSilenceTimer(){
             voiceBuffer="";
             $("#input").val("");
         }
-    },2000); // 2s // 1.5s de silence
+    },1500); // 1.5s de silence
 }
 
 function addUser(text){
@@ -130,14 +125,10 @@ else  url = "chatLLM.php";  // "https://www.siouxlog.fr/api/chat";
               chatBuffer: JSON.stringify(chatBuffer),
               csrf: csrf,  // ← token CSRF
             },
-    'xhr': function() {
-            let x = new window.XMLHttpRequest();
-            xhrLLM = x;   // stocke immédiatement
-            return x;
-            },
     'complete': function(xhr, result) {
 
-      aiBusy = false;
+      // waitingForGPT = false;
+
       if (result != 'success') {
         console.log("Fatal error API LLM !!!!");
       }
@@ -151,9 +142,10 @@ else  url = "chatLLM.php";  // "https://www.siouxlog.fr/api/chat";
         }
         else {
           console.log("Reponse: " + reponse);
-          // let reponse = fullText;   // construit par le streaming
+          // let rep = fullText;   // construit par le streaming
           addAI(reponse);  // MÉMOIRE
           $("#chat").text($("#chat").text() + "REPONSE: " + reponse + "\n");
+          xhrLLM = xhr; // Stocke la requête LLM
           speak(reponse);
         }
       }

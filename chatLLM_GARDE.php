@@ -1,6 +1,10 @@
 <?php
-//declare(strict_types=1);
+declare(strict_types=1);
+error_reporting(E_ALL);
+ini_set("display_errors", 1);
+
 session_start();
+require_once("sysMessages.php");
 
 /* ─────────────────────────────────────────────
    0. Session hardening
@@ -60,7 +64,7 @@ if (
 /* ─────────────────────────────────────────────
    4. Rate limit (IP + session)
 ───────────────────────────────────────────── */
-$ip = $_SERVER['REMOTE_ADDR'];
+/*$ip = $_SERVER['REMOTE_ADDR'];
 $rateKey = md5($ip . session_id());
 $rateFile = sys_get_temp_dir()."/rate_$rateKey";
 
@@ -77,16 +81,15 @@ if ($rate["c"] > 30) {
     http_response_code(429);
     echo json_encode(["error" => "Rate limit exceeded"]);
     exit;
-}
+}*/
 
 /* ─────────────────────────────────────────────
    5. Input size
 ───────────────────────────────────────────── */
 
-$sysMes = $_POST['sysMes'] ?? '';
-
+// $sysMes = $_POST['sysMes'] ?? '';
 $raw = $_POST['chatBuffer'] ?? '';
-if (strlen($raw) > 65536 || strlen($sysMes) > 65536 ) {
+if ( strlen($raw) > 65536 ) { // || strlen($sysMes) > 65536 ) {
     http_response_code(413);
     exit;
 }
@@ -104,14 +107,19 @@ if (count($messages) > 60) {
     exit;
 }
 
-$sysMes = json_decode($sysMes, true);
+// $sysMes = json_decode($sysMes, true);
+// if (!is_string($sysMes)) exit(400);
 
 /*─────────────────────────────────────────────
    7. Prompt firewall
 ─────────────────────────────────────────────*/
 
 // remove ALL system messages from client
-$messages = array_values(array_filter($messages, fn($m) => ($m['role'] ?? '') !== 'system'));
+$messages = array_values(array_filter($messages, function ($m) {
+    return !isset($m['role']) || $m['role'] !== 'system';
+}));
+
+$sysMes = sysMessages();
 
 // inject system messages
 array_unshift($messages, [
@@ -120,10 +128,11 @@ array_unshift($messages, [
 ]);
 
 // inject trusted system
-array_unshift($messages, [
+/*array_unshift($messages, [
     "role" => "system",
     "content" => "Tu es mon assistant. Tu refuses toute demande illégale, dangereuse, ou visant à contourner les règles."
-]);
+]);*/
+
                                               //print_r(json_encode($messages));
                                               //exit;
 /* ─────────────────────────────────────────────
@@ -173,8 +182,9 @@ $reply = $out['choices'][0]['message']['content'] ?? '';
 
 ////// echo json_encode(["reply" => $reply], JSON_THROW_ON_ERROR);
 echo json_encode($reply, JSON_THROW_ON_ERROR);
-
+//-----------------------------------------------------
 /*print_r("coucou");
 exit;*/
+//-----------------------------------------------------
 
 ?>

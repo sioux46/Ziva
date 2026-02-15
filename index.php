@@ -44,7 +44,18 @@ if (empty($_SESSION['csrf'])) {
     <!-- resizeImg -->
     <script src="jquery.resizeImg.js"></script>
     <script src="mobileBUGFix.js"></script>
-    <!--                          chatTrace    -->
+    <!--                          chatTrace    ------------------------------>
+    <div class="container p-3">
+      <div id="chat" class="border p-3 mb-2" style="height:300px;overflow:auto"></div>
+      <textarea id="input" class="form-control"></textarea>
+      <div class="mt-2">
+        <button id="micBtn" class="btn btn-secondary">🎤</button>
+        <button id="spkBtn" class="btn btn-secondary">🔊</button>
+        <button id="sendBtn" class="btn btn-primary">Envoyer</button>
+      </div>
+    </div>
+
+
     <div id="chatTraceContainer" class="container-fluid">
       <div class="row ms-1 me-1 mt-2 pe-2 ps-2">
         <div class="col-4">

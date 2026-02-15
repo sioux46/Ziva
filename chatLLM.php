@@ -64,7 +64,7 @@ if (
 /* ─────────────────────────────────────────────
    4. Rate limit (IP + session)
 ───────────────────────────────────────────── */
-$ip = $_SERVER['REMOTE_ADDR'];
+/*$ip = $_SERVER['REMOTE_ADDR'];
 $rateKey = md5($ip . session_id());
 $rateFile = sys_get_temp_dir()."/rate_$rateKey";
 
@@ -81,7 +81,7 @@ if ($rate["c"] > 30) {
     http_response_code(429);
     echo json_encode(["error" => "Rate limit exceeded"]);
     exit;
-}
+}*/
 
 /* ─────────────────────────────────────────────
    5. Input size
@@ -180,6 +180,7 @@ if ($response === false) {
 $out = json_decode($response, true);
 $reply = $out['choices'][0]['message']['content'] ?? '';
 
+////// echo json_encode(["reply" => $reply], JSON_THROW_ON_ERROR);
 echo json_encode($reply, JSON_THROW_ON_ERROR);
 //-----------------------------------------------------
 /*print_r("coucou");
