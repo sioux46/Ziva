@@ -1,3 +1,42 @@
+#micBtn {
+  font-size: 1.5rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
 
+#micBtn.active {
+  background: #dc3545;
+  color: white;
+  box-shadow: 0 0 15px rgba(220, 53, 69, 0.8);
+  animation: pulse 1.2s infinite;
+}
+
+#spkBtn {
+  font-size: 1.5rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+#spkBtn.active {
+  background: #ffc107;
+  color: black;
+  box-shadow: 0 0 15px rgba(255, 193, 7, 0.8);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
 
 /*# sourceMappingURL=index.css.map */

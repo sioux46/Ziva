@@ -33,6 +33,9 @@ header("Access-Control-Allow-Origin: $origin");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Allow-Headers: Content-Type, X-CSRF-Token");
+header("Cache-Control: no-cache");
+header("X-Accel-Buffering: no");
+header("Content-Type: application/json; charset=utf-8");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -127,14 +130,6 @@ array_unshift($messages, [
     "content" => $sysMes
 ]);
 
-// inject trusted system
-/*array_unshift($messages, [
-    "role" => "system",
-    "content" => "Tu es mon assistant. Tu refuses toute demande illégale, dangereuse, ou visant à contourner les règles."
-]);*/
-
-                                              //print_r(json_encode($messages));
-                                              //exit;
 /* ─────────────────────────────────────────────
    8. Temperature control
 ───────────────────────────────────────────── */
@@ -149,6 +144,7 @@ else  $temperature = 0.7;*/
 $data = [
     "model" => "mistral-large-latest",
     "messages" => $messages,
+    "stream" => true,
     "max_tokens" => 1000,
     "temperature" => 0.7 // $temperature
 ];
@@ -156,32 +152,33 @@ $data = [
 /* ─────────────────────────────────────────────
    10. Mistral call
 ───────────────────────────────────────────── */
+@ini_set('output_buffering','off');
+@ini_set('zlib.output_compression',false);
+@ini_set('implicit_flush',true);
+while (ob_get_level()) ob_end_flush();
+ob_implicit_flush(true);
+
 $ch = curl_init("https://api.mistral.ai/v1/chat/completions");
 curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
+    // CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST => true,
     CURLOPT_HTTPHEADER => [
         "Content-Type: application/json",
         "Authorization: Bearer $apiKey"
     ],
     CURLOPT_POSTFIELDS => json_encode($data),
-    CURLOPT_TIMEOUT => 15,
-    CURLOPT_SSL_VERIFYPEER => true
+    CURLOPT_TIMEOUT => 120,
+    // CURLOPT_SSL_VERIFYPEER => true
+    CURLOPT_WRITEFUNCTION=>function($ch,$chunk){
+      echo $chunk;
+      flush();
+      return strlen($chunk);
+    }
 ]);
-$response = curl_exec($ch);
 
-
-if ($response === false) {
-    http_response_code(502);
-    exit;
-}
-
-// Process the response
-$out = json_decode($response, true);
-$reply = $out['choices'][0]['message']['content'] ?? '';
-
-////// echo json_encode(["reply" => $reply], JSON_THROW_ON_ERROR);
-echo json_encode($reply, JSON_THROW_ON_ERROR);
+curl_exec($ch);
+curl_close($ch);
+exit;
 //-----------------------------------------------------
 /*print_r("coucou");
 exit;*/

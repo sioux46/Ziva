@@ -7,6 +7,10 @@ let aiBusy = false;
 let aiSpeaking = false;
 let xhrLLM = null;
 
+let voiceQueue="";
+let voiceTimer=null;
+
+
 //                                              R E C O G N I T I O N
 
 // Reconnaissance vocale
@@ -107,59 +111,75 @@ function submitUser(text){
 }
 
 
-//////////////////////////////////////////////////////////////////
-function sendToAI_php(chatBuffer) {
-// **** LLM call ****  $chat
+//////
+function sendToAI_php(chatBuffer){
 
-const csrf = document.querySelector('meta[name="csrf-token"]').content;
-var url;
-if ( window.location.href.lastIndexOf("8888") != -1 ) // si dans MAMP
-      url = "chatLLM.php"; // "http://ziva.local:8888/api/chat";
-else  url = "chatLLM.php";  // "https://www.siouxlog.fr/api/chat";
+ const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
-  console.log("LLM: " + url);
-  console.log("Question: " + chatBuffer);
-  waitingForGPT = true;
-  $.ajax({
-    'url': url,
-    'type': 'post',
-    'xhrFields': {
-      withCredentials: true   // ← envoie le cookie de session
-    },
-    'data': {
-              chatBuffer: JSON.stringify(chatBuffer),
-              csrf: csrf,  // ← token CSRF
-            },
-    'xhr': function() {
-            let x = new window.XMLHttpRequest();
-            xhrLLM = x;   // stocke immédiatement
-            return x;
-            },
-    'complete': function(xhr, result) {
+ let url="chatLLM.php";
 
-      aiBusy = false;
-      if (result != 'success') {
-        console.log("Fatal error API LLM !!!!");
+ let fullText="";
+ let lastSize=0;
+
+ let xhr = new XMLHttpRequest();
+xhrLLM = xhr;
+
+ xhr.open("POST",url,true);
+ xhr.withCredentials=true;
+
+ let form=new FormData();
+ form.append("chatBuffer",JSON.stringify(chatBuffer));
+ form.append("csrf",csrf);
+
+ xhr.onprogress = ()=>{
+    let chunk = xhr.responseText.substring(lastSize);
+    lastSize = xhr.responseText.length;
+
+    let lines = chunk.split("\n");
+
+    for(let l of lines){
+        if(!l.startsWith("data:")) continue;
+        if(l.includes("[DONE]")) return;
+
+        let j;
+        try {
+           j = JSON.parse(l.slice(5));
+        } catch(e){ continue; }
+
+
+
+
+      let tok;
+      if (j.choices &&
+           j.choices[0] &&
+           j.choices[0].delta &&
+           j.choices[0].delta.content) {
+
+           tok = j.choices[0].delta.content;
       }
-      else {
-        var reponse = JSON.parse(xhr.responseText);
-        console.log("Reponse du LLM pour l'utilisateur: " + reponse);
+      if(!tok) continue;  // ignore chunks vides
 
 
-        if ( reponse.match(/^Error/) ) {
-          reponse = "Désolé mais je n'ai pas compris votre question. Pouvez-vous la reformuler ?";
-        }
-        else {
-          console.log("Reponse: " + reponse);
-          // let reponse = fullText;   // construit par le streaming
-          addAI(reponse);  // MÉMOIRE
-          $("#chat").text($("#chat").text() + "REPONSE: " + reponse + "\n");
-          speak(reponse);
-        }
-      }
+      fullText+=tok;
+      $("#chat").text($("#chat").text()+tok);
     }
-  });
+
+ };
+
+ xhr.onload = ()=>{
+    aiBusy=false;
+    addAI(fullText);
+    speak(fullText);
+ };
+
+ xhr.onerror = ()=>{
+    aiBusy=false;
+ };
+
+ xhr.send(form);
 }
+
+//////
 
 // ****************************************************************************************
 // *******************************************************************   $ready$  R E A D Y
@@ -179,46 +199,3 @@ $("#spkBtn").click(()=>{
 
 }); // *********************************************  F I N   R E A D Y
 //  *******************************************************************
-
-
-
-
-
-
-
-
-
-// Exemple d'utilisation :
-const chatTestBuffer = [
-    { role: "system", content: "Vous êtes un assistant intelligent." },
-    { role: "user", content: "Bonjour, comment ça va ?" },
-    { role: "assistant", content: "Bonjour ! Je vais bien, merci. Et vous ?" },
-    { role: "user", content: "Très bien, merci !" }
-];
-/////////
-async function sendToAI_py(chatBuffer) {
-    var url;
-    if ( window.location.href.lastIndexOf("8888") != -1 ) // si dans MAMP
-          url = "http://ziva.local:8888/api/chat";
-    else  url = "https://www.siouxlog.fr/api/chat";
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ messages: chatBuffer })
-    });
-
-    const data = await response.json();
-    return data.reply;
-}
-
-//////
-function testPY() {
-  sendToAI_py(chatTestBuffer).then(reply => {
-    console.log("AI:" + reply);
-});
-}
-function testPHP() {
-  sendToAI_php(chatTestBuffer);
-}
