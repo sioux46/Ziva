@@ -38,5 +38,8 @@
     transform: scale(1);
   }
 }
+.spoken {
+  background: rgba(255, 255, 0, 0.4);
+}
 
 /*# sourceMappingURL=index.css.map */

@@ -2,199 +2,349 @@
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
 var zivaVersion = "v6.02.11.1";
+
 let chatBuffer = [];
-let aiBusy = false;
-let aiSpeaking = false;
+
+let aiStreaming = false;
+let aiSpeaking  = false;
+let aiBusy      = false;
+
 let xhrLLM = null;
 
-let voiceQueue="";
-let voiceTimer=null;
+let micEnabled = false;
+let speakerEnabled = true;
+
+let voiceBuffer = "";
+
+let lastSentUtterance = -1;
+let recognitionRunning = false;
+
+let llmFullText   = "";   // tout ce que Mistral a envoyé
+let ttsSpoken    = "";   // ce qui a été réellement prononcé
+let ttsBuffer    = "";   // ce qui est en attente de parole
+
+let lastSpoken = 0;
+let ttsQueue = [];
+let ttsBusy = false;
+let chatPlain = "";   // texte pur, jamais du HTML
+
+let speakIndex = 0; // Synchroniser le surlignage avec la voix
+
+let iosAudioUnlocked = false;
+
+const synth = window.speechSynthesis;
 
 
 //                                              R E C O G N I T I O N
 
-// Reconnaissance vocale
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
 recognition.lang = "fr-FR";
 recognition.continuous = true;
 recognition.interimResults = true;
 
-let voiceBuffer = "";
-let silenceTimer = null;
+// suivre l’état réel du micro
+recognition.onstart = ()=> recognitionRunning = true;
+recognition.onend   = ()=> recognitionRunning = false;
+recognition.onerror= ()=> recognitionRunning = false;
 
-// Buffer de phrase + détection du silence
+// BARGE-IN instantané
 recognition.onresult = e => {
 
-  if( aiSpeaking ) {
-    console.log("couper la parole");
-    speechSynthesis.cancel();   // coupe la voix IA
-    if( xhrLLM ) {
-      xhrLLM.abort();           // stop Mistral
-      xhrLLM=null;
+    // barge-in
+    if(aiSpeaking || aiStreaming){
+        stopAI();
     }
-    aiBusy = false; // autorise nouvelle requête
-    aiSpeaking = false;
-  }
 
+    let finalText = "";
 
-  let txt = "";
-  for (let i = e.resultIndex; i < e.results.length; i++)
-      txt += e.results[i][0].transcript;
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+        if(e.results[i].isFinal){
+            finalText += e.results[i][0].transcript;
+        }
+    }
 
-  voiceBuffer = txt;
-  $("#input").val(txt);
+    if(!finalText) return;   // ignore les intermédiaires
 
-  resetSilenceTimer();
+    voiceBuffer = finalText;
+    $("#input").val(finalText);
+
+    submitUser(finalText);  // une seule fois
 };
 
-let speakerEnabled = true;
-const synth = window.speechSynthesis;
+//************************************** F U N C T I O N S ************
+//********************************************************************
 
-let micEnabled=false;
+function unlockIOSAudio(){
+    if(iosAudioUnlocked) return;
+    iosAudioUnlocked = true;
+
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    speechSynthesis.speak(u);
+}
+
+// STOP GLOBAL (TTS + STREAM)
+function stopAI(){
+
+    // stop LLM
+    if(xhrLLM){
+        xhrLLM.abort();
+        xhrLLM = null;
+        aiStreaming = false;
+    }
+
+    // stop voix
+    if(aiSpeaking){
+        synth.cancel();
+        aiSpeaking = false;
+    }
+
+    // reset buffers
+    llmFullText = "";
+    ttsSpoken   = "";
+    ttsBuffer   = "";
+    ttsQueue    = [];
+
+    aiBusy = false;
+}
+
+// start sécurisé  ???
+function startMic(){
+    if(!micEnabled) return;
+    if(recognitionRunning) return;
+    try{
+        recognition.start();
+    }catch(e){}
+}
+
 
 //                                                   S Y N T H E S I S
 
+function speakChunk(){
+    if(!speakerEnabled) return;
+    if(ttsBuffer.length < 8) return;
 
+    // chercher un vrai point de coupure sémantique
+    let cut = findCutPoint(ttsBuffer);
+    if(cut === -1) return;
 
-//************************************************** F U N C T I O N  ************
-//********************************************************************************
+    // TEXTE SOURCE (exactement ce qui est affiché)
+    let raw = ttsBuffer.slice(0, cut + 1);
 
-////// Synthèse vocale
-function speak(text){
-  if(!speakerEnabled) return;
+    // retirer du buffer
+    ttsBuffer = ttsBuffer.slice(cut + 1);
 
-  aiSpeaking = true;
-  recognition.stop();   // micro OFF pendant la parole
-  voiceBuffer="";
+    // TEXTE POUR LA VOIX (avec respiration)
+    let tts = raw
+        .replace(/,/g, ",<break>")
+        .replace(/:/g, ":<break>")
+        .replace(/\.\s/g, ". <breath> ")
+        .replace(/\n+/g, " <breath> ");
 
-  let u = new SpeechSynthesisUtterance(text);
-  u.lang="fr-FR";
+    // pousser les deux versions
+    ttsQueue.push({
+        raw: raw,
+        tts: tts
+    });
 
-  u.onend = ()=>{
-    aiSpeaking=false;
-    if(micEnabled) recognition.start(); // micro ON après
-  };
-
-  synth.cancel(); // stop ancien audio
-  synth.speak(u);
+    playTTS();
 }
 
-//////
-function resetSilenceTimer(){
-    clearTimeout(silenceTimer);
-    silenceTimer = setTimeout(()=>{
-        if(voiceBuffer.trim().length>2){
-            submitUser(voiceBuffer);
-            voiceBuffer="";
-            $("#input").val("");
-        }
-    },2000); // 2s // 1.5s de silence
-}
-
-function addUser(text){
-   chatBuffer.push({role:"user", content:text});
-   $("#chat").text($("#chat").text() + "QUESTION: " + text + "\n");
-}
-
-function addAI(text){
-   chatBuffer.push({role:"assistant", content:text});
-}
-
-////// Envoi vers backend
-function submitUser(text){
-  if(aiBusy) return;      // verrou
-  aiBusy = true;
-
-  addUser(text);
-  sendToAI_php(chatBuffer);
-}
-
-
-//////
-function sendToAI_php(chatBuffer){
-
- const csrf = document.querySelector('meta[name="csrf-token"]').content;
-
- let url="chatLLM.php";
-
- let fullText="";
- let lastSize=0;
-
- let xhr = new XMLHttpRequest();
-xhrLLM = xhr;
-
- xhr.open("POST",url,true);
- xhr.withCredentials=true;
-
- let form=new FormData();
- form.append("chatBuffer",JSON.stringify(chatBuffer));
- form.append("csrf",csrf);
-
- xhr.onprogress = ()=>{
-    let chunk = xhr.responseText.substring(lastSize);
-    lastSize = xhr.responseText.length;
-
-    let lines = chunk.split("\n");
-
-    for(let l of lines){
-        if(!l.startsWith("data:")) continue;
-        if(l.includes("[DONE]")) return;
-
-        let j;
-        try {
-           j = JSON.parse(l.slice(5));
-        } catch(e){ continue; }
-
-
-
-
-      let tok;
-      if (j.choices &&
-           j.choices[0] &&
-           j.choices[0].delta &&
-           j.choices[0].delta.content) {
-
-           tok = j.choices[0].delta.content;
-      }
-      if(!tok) continue;  // ignore chunks vides
-
-
-      fullText+=tok;
-      $("#chat").text($("#chat").text()+tok);
+function findCutPoint(text){
+    // coupe sur vraie fin de phrase
+    let re = /([.!?])(?=\s+[A-ZÀ-Ÿ])/g;
+    let m, last = -1;
+    while ((m = re.exec(text)) !== null) {
+        last = m.index + 1;
     }
 
- };
+    // sinon coupe sur virgule longue
+    if (last === -1 && text.length > 120) {
+        let c = text.lastIndexOf(",");
+        if (c > 40) last = c + 1;
+    }
 
- xhr.onload = ()=>{
-    aiBusy=false;
-    addAI(fullText);
-    speak(fullText);
- };
-
- xhr.onerror = ()=>{
-    aiBusy=false;
- };
-
- xhr.send(form);
+    return last;
 }
 
-//////
+function playTTS(){
 
-// ****************************************************************************************
-// *******************************************************************   $ready$  R E A D Y
+    // rien à dire
+    if(!speakerEnabled) return;
+    if(aiSpeaking) return;
+    if(ttsQueue.length === 0) return;
+
+    let item = ttsQueue.shift();
+    if(!item || !item.tts) {
+      aiSpeaking = false;
+      return;
+    }
+
+    let raw   = item.raw;
+    let chunk = item.tts;
+
+    aiSpeaking = true;
+
+    chunk = chunk
+              .replace(/<breath>/g,"   ")
+              .replace(/<break>/g," ");
+
+    let u = new SpeechSynthesisUtterance(chunk);
+    u.lang = "fr-FR";
+    u.rate = 0.95;
+    u.pitch = 1.0;
+    u.volume = 1.0;
+
+    // quand la voix démarre
+    u.onstart = ()=>{
+        // avancer l'index sur le texte exact
+        speakIndex += raw.length;
+
+        // ce que l'humain a réellement entendu
+        ttsSpoken += raw;
+
+        // mettre à jour le surlignage
+        renderChat();
+    };
+
+    u.onend = ()=>{
+        aiSpeaking = false;
+
+        // continuer tant qu’il y a de la voix
+        playTTS();
+    };
+
+    u.onerror = ()=>{
+        aiSpeaking = false;
+        playTTS();
+    };
+
+    // ⚠️ stop tout audio précédent (sécurité)
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+}
+
+// MÉMOIRE
+function addUser(text){
+    chatBuffer.push({role:"user", content:text});
+    $("#chat").append(text);
+}
+
+// ENVOI UTILISATEUR
+function submitUser(text){
+    if(aiBusy) return;
+    aiBusy = true;
+
+    addUser(text);
+    sendToAI_php(chatBuffer);
+}
+
+// parle ce qu'il reste même sans ponctuation
+function flushTTS(){
+    if(!speakerEnabled) return;
+    if(ttsBuffer.trim().length === 0) return;
+
+    ttsQueue.push({
+        raw: ttsBuffer,
+        tts: ttsBuffer
+    });
+
+    ttsBuffer = "";
+    playTTS();
+}
+
+function renderChat(){
+  $("#chat").text(chatPlain);
+}
+
+//////////////////////////////////////////// STREAMING MISTRAL
+function sendToAI_php(chatBuffer){
+
+    const csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+    let fullText = "";
+    let lastSize = 0;
+
+    let xhr = new XMLHttpRequest();
+    xhrLLM = xhr;
+    aiStreaming = true;
+
+    xhr.open("POST","chatLLM.php",true);
+    xhr.withCredentials = true;
+
+    let form = new FormData();
+    let safeBuffer = structuredClone(chatBuffer);
+
+    form.append("chatBuffer", JSON.stringify(safeBuffer));
+    form.append("csrf", csrf);
+
+    xhr.onprogress = ()=>{
+        let chunk = xhr.responseText.substring(lastSize);
+        lastSize = xhr.responseText.length;
+
+        let lines = chunk.split("\n");
+
+        for(let l of lines){
+            if(!l.startsWith("data:")) continue;
+            if(l.includes("[DONE]")) return;
+
+            let j = JSON.parse(l.slice(5));
+
+            let tok = j.choices?.[0]?.delta?.content;
+            if(!tok) continue;
+
+            fullText += tok;
+            ttsBuffer += tok;
+            llmFullText += tok;
+            chatPlain += tok;
+            renderChat();
+
+            speakChunk();
+        }
+    };
+
+    xhr.onload = ()=>{
+        aiStreaming = false;
+        aiBusy = false;
+        flushTTS();
+
+        if(llmFullText.trim().length > 0){
+            chatBuffer.push({
+                role: "assistant",
+                content: llmFullText.trim()
+            });
+        }
+
+        llmFullText = "";
+    };
+
+    xhr.onerror = ()=>{
+        aiStreaming = false;
+        aiBusy = false;
+    };
+
+    xhr.send(form);
+    ttsSpoken = "";
+}
+
+// ******************************************************************
+// *********************************************   $ready$  R E A D Y
 $(document).ready(function () {
 
-// Boutons micro / haut-parleur
+//  micro
 $("#micBtn").click(()=>{
+  unlockIOSAudio();  //  déverrouille iOS
   micEnabled=!micEnabled;
   micEnabled ? recognition.start() : recognition.stop();
   $("#micBtn").toggleClass("btn-danger",micEnabled);
 });
 
+// haut-parleur
 $("#spkBtn").click(()=>{
-   speakerEnabled=!speakerEnabled;
-   $("#spkBtn").toggleClass("btn-warning",speakerEnabled);
+  unlockIOSAudio();  //  déverrouille iOS
+  speakerEnabled=!speakerEnabled;
+  $("#spkBtn").toggleClass("btn-warning",speakerEnabled);
 });
 
 }); // *********************************************  F I N   R E A D Y

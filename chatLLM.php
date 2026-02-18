@@ -1,5 +1,5 @@
 <?php
-declare(strict_types=1);
+// declare(strict_types=1);
 error_reporting(E_ALL);
 ini_set("display_errors", 1);
 
@@ -101,6 +101,26 @@ if ( strlen($raw) > 65536 ) { // || strlen($sysMes) > 65536 ) {
    6. Decode + validation
 ───────────────────────────────────────────── */
 $messages = json_decode($raw, true);
+
+$messages = array_values(array_filter($messages, function($m){
+    if (!isset($m["role"], $m["content"])) return false;
+
+    // sécurité: on refuse tout assistant vide ou incohérent
+    if ($m["role"] === "assistant") {
+        $t = trim($m["content"]);
+
+        if ($t === "") return false;
+
+        // coupe les fins incomplètes (phrase ouverte)
+        if (preg_match('/[a-zA-ZÀ-ÿ]$/u', $t)) {
+            // pas de ponctuation finale → phrase probablement coupée
+            return false;
+        }
+    }
+
+    return true;
+}));
+
 if (!is_array($messages)) {
     http_response_code(400);
     exit;
@@ -121,6 +141,7 @@ if (count($messages) > 60) {
 $messages = array_values(array_filter($messages, function ($m) {
     return !isset($m['role']) || $m['role'] !== 'system';
 }));
+
 
 $sysMes = sysMessages();
 

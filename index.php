@@ -46,17 +46,17 @@ if (empty($_SESSION['csrf'])) {
     <script src="mobileBUGFix.js"></script>
     <!--                          chatTrace    ------------------------------>
     <div class="container p-3">
-      <div id="chat" class="border p-3 mb-2" style="height:300px;overflow:auto"></div>
-      <textarea id="input" class="form-control"></textarea>
+      <textarea id="chat" class="form-control p-3 mb-2" style="height:600px;overflow:auto"></textarea>
+      <!--<textarea id="input" class="form-control"></textarea>-->
       <div class="mt-2">
         <button id="micBtn" class="btn btn-secondary">🎤</button>
         <button id="spkBtn" class="btn btn-secondary">🔊</button>
-        <button id="sendBtn" class="btn btn-primary">Envoyer</button>
+        <!--<button id="sendBtn" class="btn btn-primary">Envoyer</button>-->
       </div>
     </div>
 
 
-    <div id="chatTraceContainer" class="container-fluid">
+    <!--<div id="chatTraceContainer" class="container-fluid">
       <div class="row ms-1 me-1 mt-2 pe-2 ps-2">
         <div class="col-4">
           <textarea id="question2Textarea" autofocus class="form-control" placeholder="Tapez votre requête ici..."></textarea>
@@ -71,7 +71,7 @@ if (empty($_SESSION['csrf'])) {
           <textarea id="chatTrace" autofocus class="form-control" value""></textarea>
         </div>
       </div>
-    </div>
+    </div>-->
 
   </body>
 </html>
