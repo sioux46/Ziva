@@ -275,6 +275,12 @@ function sendToAI_php(chatBuffer){
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
+    // évite les reliquats inter-requêtes.
+    assistantPending = "";
+    assistantVisible = "";
+    ttsBuffer = "";
+    ttsQueue.length = 0;
+
     aiGeneration++;
     const myGen = aiGeneration;
 

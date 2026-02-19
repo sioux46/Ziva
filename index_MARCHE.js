@@ -1,7 +1,7 @@
 // index.js
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.02.18.1";
+var zivaVersion = "v6.02.19.1";
 
 let chatBuffer = [];
 
@@ -274,6 +274,12 @@ function renderLiveAssistant(text){
 function sendToAI_php(chatBuffer){
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+    // évite les reliquats inter-requêtes.
+    assistantPending = "";
+    assistantVisible = "";
+    ttsBuffer = "";
+    ttsQueue.length = 0;
 
     aiGeneration++;
     const myGen = aiGeneration;
