@@ -5,38 +5,34 @@ var zivaVersion = "v6.02.18.1";
 
 let chatBuffer = [];
 
+// états IA
 let aiStreaming = false;
 let aiSpeaking  = false;
 let aiBusy      = false;
+let aiGeneration = 0;
+let aiWasInterrupted = false;
+let assistantMessageCommitted = false;
 
+// SOURCE DE VÉRITÉ UNIQUE
+let assistantPending = "";   // texte reçu du LLM
+let assistantVisible = "";   // texte réellement parlé (vérité)
+let assistantFrozen  = false;
+
+// TTS
+let ttsBuffer = "";
+let ttsQueue = [];
+let currentUtterance = null;
+
+// réseau
 let xhrLLM = null;
 
 let micEnabled = false;
 let speakerEnabled = true;
 
-let voiceBuffer = "";
-
-let lastSentUtterance = -1;
-let recognitionRunning = false;
-
-let llmFullText   = "";   // tout ce que Mistral a envoyé
-let ttsSpoken    = "";   // ce qui a été réellement prononcé
-let ttsBuffer    = "";   // ce qui est en attente de parole
-
-let ttsQueue = [];
-let ttsBusy = false;
-let chatPlain = "";   // texte pur, jamais du HTML
-
-let speakIndex = 0; // Synchroniser le surlignage avec la voix
-let aiWasInterrupted = false;
-let assistantMessageCommitted = false;
-let aiGeneration = 0;
-
-
+// iOS
 let iosAudioUnlocked = false;
 
 const synth = window.speechSynthesis;
-
 
 //                                              R E C O G N I T I O N
 
@@ -51,13 +47,11 @@ recognition.onstart = ()=> recognitionRunning = true;
 recognition.onend   = ()=> recognitionRunning = false;
 recognition.onerror= ()=> recognitionRunning = false;
 
-// BARGE-IN instantané
 recognition.onresult = e => {
 
-    // barge-in
+    //  barge-in immédiat
     if(aiSpeaking || aiStreaming){
-        aiWasInterrupted = true;
-        stopAI();
+        interruptAI();
     }
 
     let finalText = "";
@@ -68,20 +62,22 @@ recognition.onresult = e => {
         }
     }
 
-    if(!finalText) return;   // ignore les intermédiaires
+    if(!finalText) return;
 
-    voiceBuffer = finalText;
-    $("#input").val(finalText);
-
-    submitUser(finalText);  // une seule fois
+    submitUser(finalText);
 };
 
 //************************************** F U N C T I O N S ************
 //********************************************************************
 
 // STOP GLOBAL (TTS + STREAM) barge-in  //////////    s t o p AI
-function stopAI(){
+function interruptAI(){
 
+    aiGeneration++;
+    aiWasInterrupted = true;
+    assistantFrozen = true;
+
+    // abort réseau
     if(xhrLLM){
         xhrLLM.abort();
         xhrLLM = null;
@@ -89,25 +85,24 @@ function stopAI(){
 
     aiStreaming = false;
 
-    if(aiSpeaking){
-        synth.cancel();
-        aiSpeaking = false;
-    }
+    // stop audio IMMÉDIAT
+    try{ speechSynthesis.cancel(); }catch(e){}
+    aiSpeaking = false;
 
-    aiWasInterrupted = true;
-
-    if(!assistantMessageCommitted && ttsSpoken.trim().length > 0){
+    // COMMIT FIABLE (VISIBLE UNIQUEMENT)
+    if(!assistantMessageCommitted && assistantVisible.trim().length > 0){
         chatBuffer.push({
             role: "assistant",
-            content: ttsSpoken.trim()
+            content: assistantVisible.trim()
         });
         assistantMessageCommitted = true;
     }
 
-    llmFullText = "";
-    ttsSpoken   = "";
-    ttsBuffer   = "";
-    ttsQueue    = [];
+    // purge TTS
+    ttsBuffer = "";
+    ttsQueue.length = 0;
+    currentUtterance = null;
+
     aiBusy = false;
 
     renderChat();
@@ -127,42 +122,35 @@ function unlockIOSAudio(){
 //////////////////////////////////////////////////      p l a y TTS
 function playTTS(){
 
-    // rien à dire
-    if(!speakerEnabled) return;
     if(aiSpeaking) return;
     if(ttsQueue.length === 0) return;
 
     let item = ttsQueue.shift();
-    if(!item || !item.tts) {
-      aiSpeaking = false;
-      return;
-    }
+    if(!item) return;
 
-    let raw   = item.raw;
-    let chunk = item.tts;
+    const myGen = aiGeneration; //  verrou
 
     aiSpeaking = true;
 
-    chunk = chunk
-              .replace(/<breath>/g,"   ")
-              .replace(/<break>/g," ");
+    let u = new SpeechSynthesisUtterance(item.tts);
 
-    let u = new SpeechSynthesisUtterance(chunk);
     u.lang = "fr-FR";
     u.rate = 0.95;
-    u.pitch = 1.2;
-    u.volume = 1.0;
+    u.pitch = 1.1;
 
     u.onstart = ()=>{
-        speakIndex += raw.length;
+
+        //  ignore si obsolète
+        if(myGen !== aiGeneration) return;
+        if(assistantFrozen) return;
+
+        assistantVisible += item.raw;
+        renderLiveAssistant(assistantVisible);
     };
 
     u.onend = ()=>{
         aiSpeaking = false;
-
-        // ✔️ seulement ce qui a vraiment été entendu
-        ttsSpoken += raw;
-
+        if(myGen !== aiGeneration) return;
         playTTS();
     };
 
@@ -171,43 +159,29 @@ function playTTS(){
         playTTS();
     };
 
-    // ⚠️ stop tout audio précédent (sécurité)
-    speechSynthesis.cancel();
     speechSynthesis.speak(u);
 }
 //// fin playTTS
 
 //////
 function speakChunk(){
-    if(!speakerEnabled) return;
+
     if(ttsBuffer.length < 8) return;
 
-    // chercher un vrai point de coupure sémantique
     let cut = findCutPoint(ttsBuffer);
     if(cut === -1) return;
 
-    // TEXTE SOURCE (exactement ce qui est affiché)
     let raw = ttsBuffer.slice(0, cut + 1);
-
-    // retirer du buffer
     ttsBuffer = ttsBuffer.slice(cut + 1);
 
-    // TEXTE POUR LA VOIX (avec respiration)
     let tts = raw
-        .replace(/,/g, ",<break>")
-        .replace(/:/g, ":<break>")
-        .replace(/\n-/g, ":<break>")
-        .replace(/\.\.\./g, ":<break>")
-        .replace(/\s\*\*/g, ":<break>")
-        .replace(/\.\s/g, ". <breath> ")
-        .replace(/\n+/g, " <breath> ");
+        .replace(/,/g, ", ")
+        .replace(/\n+/g, " ");
 
-    // pousser les deux versions
     ttsQueue.push({
-        raw: raw,
-        tts: tts
+        raw: raw,   // texte exact visible
+        tts: tts    // texte modifié pour la voix
     });
-
     playTTS();
 }
 
@@ -246,12 +220,17 @@ function submitUser(text){
 
 ////// parle ce qu'il reste même sans ponctuation
 function flushTTS(){
-    if(!speakerEnabled) return;
+
     if(ttsBuffer.trim().length === 0) return;
 
+    let raw = ttsBuffer;
+    let tts = raw
+        .replace(/,/g, ", ")
+        .replace(/\n+/g, " ");
+
     ttsQueue.push({
-        raw: ttsBuffer,
-        tts: ttsBuffer
+        raw: raw,
+        tts: tts
     });
 
     ttsBuffer = "";
@@ -270,6 +249,27 @@ function renderChat(){
     console.log(out);
 }
 
+//////
+function renderLiveAssistant(text){
+
+    // sécurité
+    if(typeof text !== "string") return;
+
+    // texte utilisateur déjà validé
+    let history = "";
+
+    for(let m of chatBuffer){
+        history += m.content + "\n";
+    }
+
+    //  on ajoute le flux assistant en cours
+    let out = history + text;
+
+    // rendu TEXTE PUR (jamais html)
+    $("#chat").text(out);
+}
+
+
 //////////////////////////////////////////// STREAMING MISTRAL
 function sendToAI_php(chatBuffer){
 
@@ -277,10 +277,12 @@ function sendToAI_php(chatBuffer){
 
     aiGeneration++;
     const myGen = aiGeneration;
+
+    assistantVisible = "";
+    assistantFrozen = false;
     assistantMessageCommitted = false;
     aiWasInterrupted = false;
 
-    let fullText = "";
     let lastSize = 0;
 
     let xhr = new XMLHttpRequest();
@@ -291,50 +293,59 @@ function sendToAI_php(chatBuffer){
     xhr.withCredentials = true;
 
     let form = new FormData();
-    let safeBuffer = structuredClone(chatBuffer);
-
-    form.append("chatBuffer", JSON.stringify(safeBuffer));
+    form.append("chatBuffer", JSON.stringify(structuredClone(chatBuffer)));
     form.append("csrf", csrf);
 
     xhr.onprogress = ()=>{
+
+        if(myGen !== aiGeneration) return;
+
         let chunk = xhr.responseText.substring(lastSize);
         lastSize = xhr.responseText.length;
 
         let lines = chunk.split("\n");
 
         for(let l of lines){
+
             if(!l.startsWith("data:")) continue;
             if(l.includes("[DONE]")) return;
 
-            let j = JSON.parse(l.slice(5));
+            let j;
+            try{ j = JSON.parse(l.slice(5)); }catch{ continue; }
 
             let tok = j.choices?.[0]?.delta?.content;
             if(!tok) continue;
 
-            fullText += tok;
-            ttsBuffer += tok;
-            llmFullText += tok;
-
-            speakChunk();
+            // NE PLUS ÉCRIRE SI GELÉ
+            if(!assistantFrozen){
+              assistantPending += tok;
+              ttsBuffer += tok;
+              speakChunk();
+            }
         }
     };
 
     xhr.onload = ()=>{
-        if(myGen !== aiGeneration) return;   // ignore callbacks morts
+
+        if(myGen !== aiGeneration) return;
 
         aiStreaming = false;
         aiBusy = false;
+
         flushTTS();
 
-        if(!assistantMessageCommitted && !aiWasInterrupted && llmFullText.trim().length > 0){
+        // FIN NORMALE
+        if(!assistantMessageCommitted &&
+           !aiWasInterrupted &&
+           assistantVisible.trim().length > 0){
+
             chatBuffer.push({
                 role: "assistant",
-                content: llmFullText.trim()
+                content: assistantVisible.trim()
             });
+
             assistantMessageCommitted = true;
         }
-
-        llmFullText = "";
     };
 
     xhr.onerror = ()=>{
@@ -343,7 +354,6 @@ function sendToAI_php(chatBuffer){
     };
 
     xhr.send(form);
-    ttsSpoken = "";
 }
 
 // ******************************************************************
