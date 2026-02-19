@@ -31,7 +31,6 @@ let speakIndex = 0; // Synchroniser le surlignage avec la voix
 let aiWasInterrupted = false;
 let assistantMessageCommitted = false;
 let aiGeneration = 0;
-let currentSpeakingRaw = "";
 
 
 let iosAudioUnlocked = false;
@@ -83,8 +82,6 @@ recognition.onresult = e => {
 // STOP GLOBAL (TTS + STREAM) barge-in  //////////    s t o p AI
 function stopAI(){
 
-    aiGeneration++;
-
     if(xhrLLM){
         xhrLLM.abort();
         xhrLLM = null;
@@ -93,10 +90,6 @@ function stopAI(){
     aiStreaming = false;
 
     if(aiSpeaking){
-      if(currentSpeakingRaw){
-        ttsSpoken += currentSpeakingRaw;
-        currentSpeakingRaw = "";
-      }
         synth.cancel();
         aiSpeaking = false;
     }
@@ -146,7 +139,6 @@ function playTTS(){
     }
 
     let raw   = item.raw;
-    currentSpeakingRaw = raw;
     let chunk = item.tts;
 
     aiSpeaking = true;
@@ -169,8 +161,7 @@ function playTTS(){
         aiSpeaking = false;
 
         // ✔️ seulement ce qui a vraiment été entendu
-        ttsSpoken += currentSpeakingRaw;
-        currentSpeakingRaw = "";
+        ttsSpoken += raw;
 
         playTTS();
     };
@@ -180,6 +171,8 @@ function playTTS(){
         playTTS();
     };
 
+    // ⚠️ stop tout audio précédent (sécurité)
+    speechSynthesis.cancel();
     speechSynthesis.speak(u);
 }
 //// fin playTTS
@@ -304,8 +297,6 @@ function sendToAI_php(chatBuffer){
     form.append("csrf", csrf);
 
     xhr.onprogress = ()=>{
-        if(myGen !== aiGeneration) return;
-
         let chunk = xhr.responseText.substring(lastSize);
         lastSize = xhr.responseText.length;
 
