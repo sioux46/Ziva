@@ -12,6 +12,7 @@ let aiBusy      = false;
 let aiGeneration = 0;
 let aiWasInterrupted = false;
 let assistantMessageCommitted = false;
+let dropInterruptedAssistant = false;
 
 let interruptedGeneration = -1;
 
@@ -62,14 +63,13 @@ recognition.onend = ()=>{
 recognition.onresult = e => {
 
     let finalText = "";
-    console.log("recognition.onresult 1 ----> ");
 
     for (let i = e.resultIndex; i < e.results.length; i++) {
         if(e.results[i].isFinal){
             finalText += e.results[i][0].transcript;
         }
     }
-    console.log("recognition.onresult 2 ----> " + finalText);
+    console.log("recognition.onresult ----> " + finalText);
 
 
     if(!finalText) return;
@@ -78,11 +78,11 @@ recognition.onresult = e => {
     if(aiSpeaking || aiStreaming){
       interruptAI();
 
-      //  attendre nettoyage complet
       setTimeout(()=>{
+          // garantit que le snapshot est bien écrit
+          renderChat();
           submitUser(finalText);
-      }, 180);
-
+      }, 220);
     }
     else{
       submitUser(finalText);
@@ -102,14 +102,16 @@ function interruptAI(){
     console.log("interruptAI:");
     console.log("assistantVisible: " + assistantVisible);
     console.log("assistantPending: " + assistantPending);
+
     aiWasInterrupted = true;
     assistantFrozen = true;
+    dropInterruptedAssistant = true;
 
-    //  MARQUE LA GEN ACTIVE COMME MORTE
+    // tuer la génération courante
     interruptedGeneration = aiGeneration;
 
-    // vérité absolue = ce qui a été parlé
-    const snapshot = assistantVisible;
+    // 🔥 snapshot EXACT de ce qui a été parlé
+    const snapshot = cleanAssistantText(assistantVisible);
 
     // abort réseau immédiat
     if(xhrLLM){
@@ -119,33 +121,44 @@ function interruptAI(){
 
     aiStreaming = false;
 
-    //  stop audio IMMÉDIAT
+    // 🔥 STOP AUDIO IMMÉDIAT
     try{
         speechSynthesis.cancel();
-        speechSynthesis.resume(); // iOS hardening
+        speechSynthesis.resume();
     }catch(e){}
+
     aiSpeaking = false;
 
-    //  finalisation douce (laisse finir micro-chunk)
-    setTimeout(()=> finalizeInterrupt(snapshot), 120);
-}
+    // 🔥 commit IMMÉDIAT de la version tronquée
+    if(snapshot && snapshot.trim().length > 0){
+        commitAssistant(snapshot);
+    }
 
-//////
-function finalizeInterrupt(snapshot){
+    // nettoyage buffers
+    ttsBuffer = "";
+    ttsQueue.length = 0;
+    currentUtterance = null;
+
+    aiBusy = false;
+
+    renderChat();
+}
+//////  plus rien à faire : tout est déjà géré dans interruptAI
+/*function finalizeInterrupt(snapshot){
 
   const safeText = cleanAssistantText(snapshot);
 
   if(safeText && safeText.trim().length > 0){
       commitAssistant(safeText);
   }
+
   ttsBuffer = "";
   ttsQueue.length = 0;
   currentUtterance = null;
-
   aiBusy = false;
 
   renderChat();
-}
+}*/
 
 //////
 function unlockIOSAudio(){
@@ -162,6 +175,15 @@ function unlockIOSAudio(){
 //////////////////////////////////////////////////      p l a y TTS
 function playTTS(){
 
+    const myGen = aiGeneration; //  verrou
+
+    // 🚨 garde absolue anti-fuite
+    if(assistantFrozen || myGen !== aiGeneration){
+        aiSpeaking = false;
+        try{ speechSynthesis.cancel(); }catch(e){}
+        return;
+    }
+
     if(!speakerEnabled) return;
     if(aiSpeaking) return;
     if(ttsQueue.length === 0) return;
@@ -169,7 +191,6 @@ function playTTS(){
     let item = ttsQueue.shift();
     if(!item) return;
 
-    const myGen = aiGeneration; //  verrou
 
     aiSpeaking = true;
 
@@ -181,23 +202,18 @@ function playTTS(){
 
     u.onstart = ()=>{
 
-        //  ignore si obsolète
+        //  garde unique atomique
         if(myGen !== aiGeneration || assistantFrozen){
             aiSpeaking = false;
             return;
         }
 
-        // double garde anti-course
-        if(assistantFrozen || myGen !== aiGeneration) {
-            aiSpeaking = false;
-            return;
-        }
+        // append SEULEMENT si toujours valide
+        assistantVisible += item.raw;
 
-        // append atomique
-        if(!assistantVisible.endsWith(item.raw)){
-            assistantVisible += item.raw;
+        if(!assistantFrozen && myGen === aiGeneration){
+            renderLiveAssistant(assistantVisible);
         }
-        renderLiveAssistant(assistantVisible);
     };
 
     u.onend = ()=>{
@@ -219,8 +235,8 @@ function playTTS(){
 //////
 function speakChunk(){
 
-    if(aiGeneration === interruptedGeneration) return;
     if(assistantFrozen) return;
+    if(aiGeneration === interruptedGeneration) return;
     if(ttsBuffer.length < 8) return;
 
     let cut = findCutPoint(ttsBuffer);
@@ -236,26 +252,6 @@ function speakChunk(){
         tts: tts    // texte modifié pour la voix
     });
     playTTS();
-}
-
-//////
-function findCutPoint(text){
-    // coupe sur vraie fin de phrase
-    // let re = /([.!?])(?=\s+)/g;
-    let re = /([.!?])(?=\s+[A-ZÀ-Ÿ-])/g;
-
-    let m, last = -1;
-    while ((m = re.exec(text)) !== null) {
-        last = m.index + 1;
-    }
-
-    // sinon coupe sur virgule longue
-    if (last === -1 && text.length > 140) {
-        let c = text.lastIndexOf(",");
-        if (c > 60) last = c + 1;
-    }
-
-    return last;
 }
 
 ////// MÉMOIRE
@@ -325,6 +321,56 @@ function renderLiveAssistant(text){
 }
 
 //////
+/*function findCutPoint(text){
+    // coupe sur vraie fin de phrase
+    // let re = /([.!?])(?=\s+)/g;
+    let re = /([.!?])(?=\s+[A-ZÀ-Ÿ])/g;
+
+    let m, last = -1;
+    while ((m = re.exec(text)) !== null) {
+        last = m.index + 1;
+    }
+
+    // sinon coupe sur virgule longue
+    if (last === -1 && text.length > 140) {
+        let c = text.lastIndexOf(",");
+        if (c > 60) last = c + 1;
+    }
+
+    return last;
+}*/
+function findCutPoint(text){
+
+    // ponctuation forte
+    let strong = /([.!?])(?=\s+[A-ZÀ-Ÿ-])/g;
+    let m, last = -1;
+
+    while ((m = strong.exec(text)) !== null) {
+        last = m.index + 1;
+    }
+    if(last !== -1) return last;
+
+    //  saut de ligne = forte
+    let nl = text.lastIndexOf("\n");
+    if(nl > 40) return nl + 1;
+
+    //  ponctuation moyenne
+    let mid = text.lastIndexOf(";");
+    if(mid > 80) return mid + 1;
+
+    mid = text.lastIndexOf(":");
+    if(mid > 80) return mid + 1;
+
+    //  virgule (faible, prudente)
+    if(text.length > 160){
+        let c = text.lastIndexOf(",");
+        if(c > 80) return c + 1;
+    }
+
+    return -1;
+}
+
+//////
 function formatTTS(text){
 
     return text
@@ -352,20 +398,22 @@ function cleanAssistantText(text){
 
     if(!text) return "";
 
-    // chercher ponctuation forte
-    const strong = text.match(/([\s\S]*[.!?])[^.!?]*$/);
+    text = text.trim();
 
-    if(strong){
-        return strong[1].trim();
+    // 1️⃣ priorité : ponctuation forte complète
+    const strongMatch = text.match(/([\s\S]*[.!?])\s+/);
+    if(strongMatch){
+        return strongMatch[1].trim();
     }
 
-    // sinon couper au dernier espace (mot complet)
+    // 2️⃣ sinon : TOUJOURS couper au dernier espace
     const lastSpace = text.lastIndexOf(" ");
-    if(lastSpace > 20){
+
+    if(lastSpace !== -1){
         return text.slice(0, lastSpace).trim();
     }
 
-    // fallback
+    // 3️⃣ fallback ultra court (un seul mot)
     return text.trim();
 }
 
@@ -404,6 +452,7 @@ function sendToAI_php(chatBuffer){
     assistantFrozen = false;
     assistantMessageCommitted = false;
     aiWasInterrupted = false;
+    dropInterruptedAssistant = false;
 
     let lastSize = 0;
     //------------------------------------------

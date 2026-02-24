@@ -12,6 +12,9 @@ let aiBusy      = false;
 let aiGeneration = 0;
 let aiWasInterrupted = false;
 let assistantMessageCommitted = false;
+let dropInterruptedAssistant = false;
+
+let interruptedGeneration = -1;
 
 // SOURCE DE VÉRITÉ UNIQUE
 let assistantPending = "";   // texte reçu du LLM
@@ -21,7 +24,6 @@ let assistantFrozen  = false;
 // TTS
 let ttsBuffer = "";
 let ttsQueue = [];
-let currentUtterance = null;
 
 // réseau
 let xhrLLM = null;
@@ -31,6 +33,9 @@ let speakerEnabled = true;
 
 // iOS
 let iosAudioUnlocked = false;
+
+let interruptRequested = false;
+let interruptAfterWord = false;
 
 const synth = window.speechSynthesis;
 
@@ -42,17 +47,22 @@ recognition.lang = "fr-FR";
 recognition.continuous = true;
 recognition.interimResults = true;
 
+//------------------------------
 // suivre l’état réel du micro
 recognition.onstart = ()=> recognitionRunning = true;
-recognition.onend   = ()=> recognitionRunning = false;
-recognition.onerror= ()=> recognitionRunning = false;
 
-recognition.onresult = e => {
+//------------------------------
+// Chrome coupe parfois le micro en mode continu.
+recognition.onend = ()=>{
+    recognitionRunning = false;
 
-    //  barge-in immédiat
-    if(aiSpeaking || aiStreaming){
-        interruptAI();
+    if(micEnabled){
+        try{ recognition.start(); }catch(e){}
     }
+};
+
+//-------------------------------
+recognition.onresult = e => {
 
     let finalText = "";
 
@@ -61,23 +71,51 @@ recognition.onresult = e => {
             finalText += e.results[i][0].transcript;
         }
     }
+    //console.log("recognition.onresult ----> " + finalText);
+
 
     if(!finalText) return;
 
-    submitUser(finalText);
-};
+    // barge-in barge-in IMMÉDIAT dès phrase valide
+    if( aiSpeaking ) {
+
+      interruptAI();
+
+      const waitCommit = () => {
+          if(!assistantMessageCommitted && aiSpeaking){
+              setTimeout(waitCommit, 40);
+              return;
+          }
+          renderChat();
+          submitUser(finalText);
+      };
+      waitCommit();
+    }
+    else{
+      submitUser(finalText);
+    }
+  };
+
+//----------------------
+recognition.onerror= ()=> recognitionRunning = false;
+
 
 //************************************** F U N C T I O N S ************
-//********************************************************************
+//*********************************************************************
 
-// STOP GLOBAL (TTS + STREAM) barge-in  //////////    s t o p AI
+// STOP GLOBAL barge-in  //////////    i n t e r r u p t AI
 function interruptAI(){
 
-    aiGeneration++;
-    aiWasInterrupted = true;
-    assistantFrozen = true;
+    if(!aiSpeaking && !aiStreaming) return;
 
-    // abort réseau
+    aiWasInterrupted = true;
+    interruptRequested = true;
+
+    // on bloque toute nouvelle génération
+    aiGeneration++;
+    interruptedGeneration = aiGeneration -1;
+
+    // stop réseau immédiat
     if(xhrLLM){
         xhrLLM.abort();
         xhrLLM = null;
@@ -85,29 +123,18 @@ function interruptAI(){
 
     aiStreaming = false;
 
-    // stop audio IMMÉDIAT
-    try{ speechSynthesis.cancel(); }catch(e){}
-    aiSpeaking = false;
+    // ⚠️ IMPORTANT :
+    // on NE cancel PAS ici
+    // on attend le prochain mot
 
-    // COMMIT FIABLE (VISIBLE UNIQUEMENT)
-    if(!assistantMessageCommitted && assistantVisible.trim().length > 0){
-        chatBuffer.push({
-            role: "assistant",
-            content: assistantVisible.trim()
-        });
-        assistantMessageCommitted = true;
-    }
-
-    // purge TTS
-    ttsBuffer = "";
+    // on empêche toute nouvelle queue
     ttsQueue.length = 0;
-    currentUtterance = null;
+    ttsBuffer = "";
 
-    aiBusy = false;
-
-    renderChat();
+    dropInterruptedAssistant = true;
 }
 
+//////
 function unlockIOSAudio(){
     if(iosAudioUnlocked) return;
     iosAudioUnlocked = true;
@@ -122,40 +149,90 @@ function unlockIOSAudio(){
 //////////////////////////////////////////////////      p l a y TTS
 function playTTS(){
 
+    if(!speakerEnabled) return;
     if(aiSpeaking) return;
     if(ttsQueue.length === 0) return;
 
+    const myGen = aiGeneration;
+
     let item = ttsQueue.shift();
     if(!item) return;
-
-    const myGen = aiGeneration; //  verrou
 
     aiSpeaking = true;
 
     let u = new SpeechSynthesisUtterance(item.tts);
 
+    u.onboundary = (event)=>{
+
+        if(!interruptRequested) return;
+
+        // on coupe UNIQUEMENT sur fin de mot
+        if(event.name === "word" || event.charIndex >= item.tts.length - 1){
+
+            interruptAfterWord = true;
+
+            try{ speechSynthesis.cancel(); }catch(e){}
+
+            aiSpeaking = false;
+
+            const snapshot = cleanAssistantText(assistantVisible);
+
+            if(snapshot){
+                commitAssistant(snapshot);
+            }
+
+            assistantFrozen = true;
+            interruptRequested = false;
+        }
+    };
+
     u.lang = "fr-FR";
-    u.rate = 0.95;
-    u.pitch = 1.1;
+    u.rate = 1;
+    u.pitch = 1.6;
 
     u.onstart = ()=>{
 
-        //  ignore si obsolète
-        if(myGen !== aiGeneration) return;
-        if(assistantFrozen) return;
+        if(interruptRequested){
+          try{ speechSynthesis.cancel(); }catch(e){}
+          aiSpeaking = false;
+          return;
+        }
 
+        // 🔥 GARDE ABSOLUE
+        if(
+            assistantFrozen ||
+            aiWasInterrupted ||
+            myGen !== aiGeneration
+        ){
+            aiSpeaking = false;
+            try{ speechSynthesis.cancel(); }catch(e){}
+            return;
+        }
+
+        // ✅ append UNIQUEMENT si validé
         assistantVisible += item.raw;
         renderLiveAssistant(assistantVisible);
     };
 
     u.onend = ()=>{
         aiSpeaking = false;
-        if(myGen !== aiGeneration) return;
-        playTTS();
+
+        if(
+            assistantFrozen ||
+            aiWasInterrupted ||
+            myGen !== aiGeneration
+        ) return;
+
+        // 🔥 RELANCE FORCÉE
+        setTimeout(()=>{
+            playTTS();
+            flushTTS(); // très important
+        }, 0);
     };
 
     u.onerror = ()=>{
         aiSpeaking = false;
+        if(assistantFrozen) return;
         playTTS();
     };
 
@@ -166,41 +243,30 @@ function playTTS(){
 //////
 function speakChunk(){
 
-    if(ttsBuffer.length < 8) return;
+    if(assistantFrozen) return;
+    if(interruptRequested) return;
+    if(aiGeneration === interruptedGeneration) return;
 
-    let cut = findCutPoint(ttsBuffer);
-    if(cut === -1) return;
+    while(true){
 
-    let raw = ttsBuffer.slice(0, cut + 1);
-    ttsBuffer = ttsBuffer.slice(cut + 1);
+        let spaceIndex = ttsBuffer.indexOf(" ");
+        if(spaceIndex === -1) break;
 
-    let tts = raw
-        .replace(/,/g, ", ")
-        .replace(/\n+/g, " ");
+        let raw = ttsBuffer.slice(0, spaceIndex + 1);
+        ttsBuffer = ttsBuffer.slice(spaceIndex + 1);
 
-    ttsQueue.push({
-        raw: raw,   // texte exact visible
-        tts: tts    // texte modifié pour la voix
-    });
-    playTTS();
-}
+        let tts = formatTTS(raw);
 
-//////
-function findCutPoint(text){
-    // coupe sur vraie fin de phrase
-    let re = /([.!?])(?=\s+[A-ZÀ-Ÿ])/g;
-    let m, last = -1;
-    while ((m = re.exec(text)) !== null) {
-        last = m.index + 1;
+        ttsQueue.push({
+            raw: raw,
+            tts: tts
+        });
     }
 
-    // sinon coupe sur virgule longue
-    if (last === -1 && text.length > 120) {
-        let c = text.lastIndexOf(",");
-        if (c > 40) last = c + 1;
+    // 🔥 KICK SAFE
+    if(!aiSpeaking){
+        playTTS();
     }
-
-    return last;
 }
 
 ////// MÉMOIRE
@@ -221,12 +287,18 @@ function submitUser(text){
 ////// parle ce qu'il reste même sans ponctuation
 function flushTTS(){
 
+    if(assistantFrozen) return;
+    if(interruptRequested) return;
     if(ttsBuffer.trim().length === 0) return;
+    if(aiSpeaking) {
+        // 🔥 re-tenter dès que la voix finit. NE PAS PERDRE LE FLUSH
+        setTimeout(flushTTS, 60);
+        return;
+    }
 
     let raw = ttsBuffer;
-    let tts = raw
-        .replace(/,/g, ", ")
-        .replace(/\n+/g, " ");
+
+    let tts = formatTTS(raw);
 
     ttsQueue.push({
         raw: raw,
@@ -252,6 +324,9 @@ function renderChat(){
 //////
 function renderLiveAssistant(text){
 
+    // 🚨 si déjà commit → on n'affiche plus de live
+    if(assistantMessageCommitted) return;
+
     // sécurité
     if(typeof text !== "string") return;
 
@@ -270,7 +345,66 @@ function renderLiveAssistant(text){
 }
 
 
-//////////////////////////////////////////// STREAMING MISTRAL
+//////
+function formatTTS(text){
+
+    return text
+
+        // virgules → petite pause
+        // .replace(/,/g, ", ")
+
+        // point-virgule → pause moyenne
+        .replace(/,/g, ", ")
+        .replace(/;/g, "; ")
+        .replace(/:/g, ": ")
+
+        // respiration naturelle
+        .replace(/\s-\s/g, "... ")
+
+        // sauts de ligne → pause
+        .replace(/\n+/g, ". ")
+
+        // espaces multiples
+        .replace(/\s{2,}/g, " ");
+}
+
+//////
+function cleanAssistantText(text){
+
+    if(!text) return "";
+
+    text = text.trimEnd();
+
+    const lastSpace = text.lastIndexOf(" ");
+
+    if(lastSpace !== -1){
+        return text.slice(0, lastSpace).trim();
+    }
+
+    return text.trim();
+}
+
+//////
+function commitAssistant(text){
+
+    if(assistantMessageCommitted) return;
+
+    const clean = (text || "").trim();
+    if(!clean) return;
+
+    chatBuffer.push({
+        role: "assistant",
+        content: clean
+    });
+
+    assistantMessageCommitted = true;
+
+    // 🔥 CRITIQUE — empêche le double affichage
+    assistantVisible = "";
+    assistantPending = "";
+    assistantFrozen = true;
+}
+////////////////////////////////////////////        STREAMING MISTRAL
 function sendToAI_php(chatBuffer){
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
@@ -288,11 +422,12 @@ function sendToAI_php(chatBuffer){
     assistantFrozen = false;
     assistantMessageCommitted = false;
     aiWasInterrupted = false;
+    dropInterruptedAssistant = false;
 
     let lastSize = 0;
-
+    //------------------------------------------
     let xhr = new XMLHttpRequest();
-    xhrLLM = xhr;
+    xhrLLM = xhr; // copie dans variable globale
     aiStreaming = true;
 
     xhr.open("POST","chatLLM.php",true);
@@ -302,9 +437,10 @@ function sendToAI_php(chatBuffer){
     form.append("chatBuffer", JSON.stringify(structuredClone(chatBuffer)));
     form.append("csrf", csrf);
 
-    xhr.onprogress = ()=>{
+    xhr.onprogress = ()=>{ // toutes les 50ms
 
-        if(myGen !== aiGeneration) return;
+        // 🔥 coupe-circuit dur
+        if(myGen !== aiGeneration || assistantFrozen || aiWasInterrupted) return;
 
         let chunk = xhr.responseText.substring(lastSize);
         lastSize = xhr.responseText.length;
@@ -323,11 +459,22 @@ function sendToAI_php(chatBuffer){
             if(!tok) continue;
 
             // NE PLUS ÉCRIRE SI GELÉ
-            if(!assistantFrozen){
+
+            // 🔥 double garde (très important)
+            if(assistantFrozen || aiWasInterrupted || myGen !== aiGeneration){
+                continue;
+            }
+
               assistantPending += tok;
               ttsBuffer += tok;
+
+              // fallback visuel si pas de TTS
+              if(!speakerEnabled){
+                  assistantVisible = assistantPending;
+                  renderLiveAssistant(assistantVisible);
+              }
               speakChunk();
-            }
+
         }
     };
 
@@ -338,22 +485,35 @@ function sendToAI_php(chatBuffer){
         aiStreaming = false;
         aiBusy = false;
 
-        flushTTS();
-
-        // FIN NORMALE
-        if(!assistantMessageCommitted &&
-           !aiWasInterrupted &&
-           assistantVisible.trim().length > 0){
-
-            chatBuffer.push({
-                role: "assistant",
-                content: assistantVisible.trim()
-            });
-
-            assistantMessageCommitted = true;
+        // 🔥 on vide le buffer UNE SEULE FOIS
+        if(!assistantFrozen && !aiWasInterrupted){
+            flushTTS();
         }
-    };
 
+        // 🔥 commit différé = laisse le dernier onstart passer
+        setTimeout(()=>{
+
+            if(myGen !== aiGeneration) return;
+            if(assistantMessageCommitted) return;
+
+            let finalText = "";
+
+            // ✅ interruption → uniquement ce qui a été parlé
+            if(aiWasInterrupted){
+                finalText = assistantVisible.trim();
+            }
+            // ✅ fin normale → priorité à ce qui a été parlé
+            else{
+                finalText =
+                    assistantVisible.trim().length > 0
+                    ? assistantVisible.trim()
+                    : assistantPending.trim(); // fallback sécurité
+            }
+
+            commitAssistant(finalText);
+
+        }, 120); // ← CRITIQUE
+    };
     xhr.onerror = ()=>{
         aiStreaming = false;
         aiBusy = false;

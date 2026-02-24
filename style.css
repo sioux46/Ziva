@@ -1,0 +1,120 @@
+
+#mosaicGridOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: none;
+  background-image:
+    linear-gradient(
+      to right,
+      var(--box-rgba) var(--grid-line),
+      transparent var(--grid-gap)
+    ),
+    linear-gradient(
+      to bottom,
+      var(--box-rgba) var(--grid-line),
+      transparent var(--grid-gap)
+    );
+  background-size:
+      calc(100% / var(--cols)) calc(100% / var(--rows));
+  background-position:
+      var(--grid-offset-x, 0) var(--grid-offset-y, 0);
+}
+
+
+#mosaicContainer {
+  position: relative;
+  margin: 0.2rem 0 1rem 0;
+  width: 100%;
+  max-width: auto; /* 100% */
+  height: auto;  /* ?? */
+  aspect-ratio: var(--cols) / var(--rows);
+}
+
+#mosaic {
+  display: grid;
+  /*z-index: 1000;*/
+  /* margin: 0 auto; */
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), 1fr);
+  width: 100%;
+  height: auto;
+
+  /* border: 4px solid var(--box-rgba);
+  padding: 4px;*/
+  border-radius: 10px;
+  overflow: visible;
+  pointer-events: none;
+  gap: 0 !important;
+}
+
+.tile {
+  aspect-ratio: 1;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  background-clip: padding-box;  /* Tiles transparentes si nécessaire */
+  box-sizing: border-box;
+}
+
+span,
+.color-input,
+.form-check-input,
+#mosaicContainer,
+#frame,
+#back,
+#square,
+#tileBorder {
+  cursor: pointer;
+}
+
+#gap {
+  height: 0.2rem;
+  display: block;
+  background-color: #d8d8d8;
+}
+
+#manualPieceSelector {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+#manualPieceSelector button {
+  width: 60px;
+  height: 30px;
+  border: none;
+}
+
+.input-group-text,
+#borderSize,
+#height,
+#width,
+#angle,
+#frameAngle,
+#paddingSize,
+#frameSize {
+  height: 1.7rem !important;
+  text-align: center;
+}
+
+#exportBtn {
+  border: 2px solid grey !important;
+}
+
+h6 {
+  position: relative;
+  top: -10px;
+}
+
+#submit {
+  border: 2px solid gray !important;
+  color: black !important;
+  background-color: #f8f9fa !important;
+  display: none;
+}
+
+.transition-width {
+  transition: width 0.3s ease;
+}

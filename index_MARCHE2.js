@@ -12,6 +12,7 @@ let aiBusy      = false;
 let aiGeneration = 0;
 let aiWasInterrupted = false;
 let assistantMessageCommitted = false;
+let dropInterruptedAssistant = false;
 
 let interruptedGeneration = -1;
 
@@ -102,8 +103,10 @@ function interruptAI(){
     console.log("interruptAI:");
     console.log("assistantVisible: " + assistantVisible);
     console.log("assistantPending: " + assistantPending);
+
     aiWasInterrupted = true;
     assistantFrozen = true;
+    dropInterruptedAssistant = true;
 
     //  MARQUE LA GEN ACTIVE COMME MORTE
     interruptedGeneration = aiGeneration;
@@ -135,9 +138,13 @@ function finalizeInterrupt(snapshot){
 
   const safeText = cleanAssistantText(snapshot);
 
-  if(safeText && safeText.trim().length > 0){
-      commitAssistant(safeText);
+
+  if(!dropInterruptedAssistant){
+      if(safeText && safeText.trim().length > 0){
+          commitAssistant(safeText);
+      }
   }
+
   ttsBuffer = "";
   ttsQueue.length = 0;
   currentUtterance = null;
@@ -194,9 +201,7 @@ function playTTS(){
         }
 
         // append atomique
-        if(!assistantVisible.endsWith(item.raw)){
-            assistantVisible += item.raw;
-        }
+        assistantVisible += item.raw;
         renderLiveAssistant(assistantVisible);
     };
 
@@ -239,10 +244,10 @@ function speakChunk(){
 }
 
 //////
-function findCutPoint(text){
+/*function findCutPoint(text){
     // coupe sur vraie fin de phrase
     // let re = /([.!?])(?=\s+)/g;
-    let re = /([.!?])(?=\s+[A-ZÀ-Ÿ-])/g;
+    let re = /([.!?])(?=\s+[A-ZÀ-Ÿ])/g;
 
     let m, last = -1;
     while ((m = re.exec(text)) !== null) {
@@ -256,8 +261,37 @@ function findCutPoint(text){
     }
 
     return last;
-}
+}*/
+function findCutPoint(text){
 
+    // ponctuation forte
+    let strong = /([.!?])(?=\s+[A-ZÀ-Ÿ-])/g;
+    let m, last = -1;
+
+    while ((m = strong.exec(text)) !== null) {
+        last = m.index + 1;
+    }
+    if(last !== -1) return last;
+
+    //  saut de ligne = forte
+    let nl = text.lastIndexOf("\n");
+    if(nl > 40) return nl + 1;
+
+    //  ponctuation moyenne
+    let mid = text.lastIndexOf(";");
+    if(mid > 80) return mid + 1;
+
+    mid = text.lastIndexOf(":");
+    if(mid > 80) return mid + 1;
+
+    //  virgule (faible, prudente)
+    if(text.length > 160){
+        let c = text.lastIndexOf(",");
+        if(c > 80) return c + 1;
+    }
+
+    return -1;
+}
 ////// MÉMOIRE
 function addUser(text){
     chatBuffer.push({role:"user", content:text});
@@ -352,20 +386,22 @@ function cleanAssistantText(text){
 
     if(!text) return "";
 
-    // chercher ponctuation forte
-    const strong = text.match(/([\s\S]*[.!?])[^.!?]*$/);
+    text = text.trim();
 
-    if(strong){
-        return strong[1].trim();
+    // 1️⃣ priorité : ponctuation forte complète
+    const strongMatch = text.match(/([\s\S]*[.!?])\s+/);
+    if(strongMatch){
+        return strongMatch[1].trim();
     }
 
-    // sinon couper au dernier espace (mot complet)
+    // 2️⃣ sinon : TOUJOURS couper au dernier espace
     const lastSpace = text.lastIndexOf(" ");
-    if(lastSpace > 20){
+
+    if(lastSpace !== -1){
         return text.slice(0, lastSpace).trim();
     }
 
-    // fallback
+    // 3️⃣ fallback ultra court (un seul mot)
     return text.trim();
 }
 
@@ -404,6 +440,7 @@ function sendToAI_php(chatBuffer){
     assistantFrozen = false;
     assistantMessageCommitted = false;
     aiWasInterrupted = false;
+    dropInterruptedAssistant = false;
 
     let lastSize = 0;
     //------------------------------------------
