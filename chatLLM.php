@@ -166,7 +166,7 @@ $data = [
     "model" => "mistral-large-latest",
     "messages" => $messages,
     "stream" => true,
-    "max_tokens" => 1000,
+    "max_tokens" => 500, // 1000
     "temperature" => 0.7 // $temperature
 ];
 

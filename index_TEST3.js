@@ -12,7 +12,6 @@ let aiBusy      = false;
 let aiGeneration = 0;
 let aiWasInterrupted = false;
 let assistantMessageCommitted = false;
-let dropInterruptedAssistant = false;
 
 let interruptedGeneration = -1;
 
@@ -24,7 +23,6 @@ let assistantFrozen  = false;
 // TTS
 let ttsBuffer = "";
 let ttsQueue = [];
-let currentUtterance = null;
 
 // réseau
 let xhrLLM = null;
@@ -99,13 +97,13 @@ recognition.onerror= ()=> recognitionRunning = false;
 // STOP GLOBAL barge-in  //////////    i n t e r r u p t AI
 function interruptAI(){
 
+
     console.log("interruptAI:");
     console.log("assistantVisible: " + assistantVisible);
     console.log("assistantPending: " + assistantPending);
 
     aiWasInterrupted = true;
     assistantFrozen = true;
-    dropInterruptedAssistant = true;
 
     // tuer la génération courante
     interruptedGeneration = aiGeneration;
@@ -137,7 +135,6 @@ function interruptAI(){
     // nettoyage buffers
     ttsBuffer = "";
     ttsQueue.length = 0;
-    currentUtterance = null;
 
     aiBusy = false;
 
@@ -402,6 +399,7 @@ function cleanAssistantText(text){
 function commitAssistant(text){
 
     if(assistantMessageCommitted) return;
+    if(assistantFrozen && aiWasInterrupted === false) return;
 
     const clean = (text || "").trim();
     if(!clean) return;
@@ -433,7 +431,6 @@ function sendToAI_php(chatBuffer){
     assistantFrozen = false;
     assistantMessageCommitted = false;
     aiWasInterrupted = false;
-    dropInterruptedAssistant = false;
 
     let lastSize = 0;
     //------------------------------------------
@@ -450,6 +447,7 @@ function sendToAI_php(chatBuffer){
 
     xhr.onprogress = ()=>{ // toutes les 50ms
 
+        if(assistantFrozen) return;
         if(myGen !== aiGeneration || assistantFrozen) return;
 
         let chunk = xhr.responseText.substring(lastSize);
@@ -483,33 +481,33 @@ function sendToAI_php(chatBuffer){
         }
     };
 
-    xhr.onload = ()=>{ // fin succes
+    xhr.onload = ()=>{
 
         if(myGen !== aiGeneration) return;
 
         aiStreaming = false;
         aiBusy = false;
 
+        // 🚨 SI INTERRUPTION → JAMAIS DE COMMIT
+        if(assistantFrozen){
+            return;
+        }
+
         if(!assistantFrozen){
             flushTTS();
         }
 
-        // FIN NORMALE
-        if(
-            !assistantMessageCommitted &&
-            myGen === aiGeneration &&
-            interruptedGeneration !== myGen
-        ){
+        // FIN NORMALE UNIQUEMENT
+        if(!assistantMessageCommitted){
 
-        const finalText =
-            assistantVisible.trim().length > 0
-            ? assistantVisible.trim()
-            : assistantPending.trim();   //  FALLBACK CRITIQUE
+            const finalText =
+                assistantVisible.trim().length > 0
+                ? assistantVisible.trim()
+                : assistantPending.trim();
 
-            commitAssistant(finalText)
+            commitAssistant(finalText);
         }
     };
-
     xhr.onerror = ()=>{
         aiStreaming = false;
         aiBusy = false;
@@ -539,3 +537,7 @@ $("#spkBtn").click(()=>{
 
 }); // *********************************************  F I N   R E A D Y
 //  *******************************************************************
+/*$("#spkBtn").trigger("click");
+  setTimeout(()=>{
+  $("#spkBtn").trigger("click");
+}, 5);*/

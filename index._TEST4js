@@ -10,9 +10,9 @@ let aiStreaming = false;
 let aiSpeaking  = false;
 let aiBusy      = false;
 let aiGeneration = 0;
+let ttsKilledGeneration = -1;
 let aiWasInterrupted = false;
 let assistantMessageCommitted = false;
-let dropInterruptedAssistant = false;
 
 let interruptedGeneration = -1;
 
@@ -24,7 +24,6 @@ let assistantFrozen  = false;
 // TTS
 let ttsBuffer = "";
 let ttsQueue = [];
-let currentUtterance = null;
 
 // réseau
 let xhrLLM = null;
@@ -99,51 +98,70 @@ recognition.onerror= ()=> recognitionRunning = false;
 // STOP GLOBAL barge-in  //////////    i n t e r r u p t AI
 function interruptAI(){
 
+    // 🔒 idempotence dure
+    if(aiWasInterrupted) return;
+
     console.log("interruptAI:");
     console.log("assistantVisible: " + assistantVisible);
     console.log("assistantPending: " + assistantPending);
 
+    // ===============================
+    // 1️⃣ marquer interruption AVANT tout
+    // ===============================
     aiWasInterrupted = true;
     assistantFrozen = true;
-    dropInterruptedAssistant = true;
-
-    // tuer la génération courante
     interruptedGeneration = aiGeneration;
 
-    // 🔥 snapshot EXACT de ce qui a été parlé
+    // 🔥 kill toute future TTS de cette génération
+    ttsKilledGeneration = aiGeneration;
+
+    // ===============================
+    // 2️⃣ snapshot EXACT de ce qui a été parlé
+    // ===============================
     const snapshot = cleanAssistantText(assistantVisible);
 
-    // abort réseau immédiat
+    // ===============================
+    // 3️⃣ STOP réseau IMMÉDIAT
+    // ===============================
     if(xhrLLM){
-        xhrLLM.abort();
+        try{ xhrLLM.abort(); }catch(e){}
         xhrLLM = null;
     }
 
     aiStreaming = false;
 
-    // 🔥 STOP AUDIO IMMÉDIAT
+    // ===============================
+    // 4️⃣ STOP audio nucléaire
+    // ===============================
     try{
         speechSynthesis.cancel();
-        speechSynthesis.resume();
     }catch(e){}
 
     aiSpeaking = false;
 
-    // 🔥 commit IMMÉDIAT de la version tronquée
+    // ===============================
+    // 5️⃣ purge buffers TTS
+    // ===============================
+    ttsBuffer = "";
+    ttsQueue.length = 0;
+
+    // ===============================
+    // 6️⃣ commit IMMÉDIAT du snapshot
+    // ===============================
     if(snapshot && snapshot.trim().length > 0){
         commitAssistant(snapshot);
     }
 
-    // nettoyage buffers
-    ttsBuffer = "";
-    ttsQueue.length = 0;
-    currentUtterance = null;
-
+    // ===============================
+    // 7️⃣ libérer IA
+    // ===============================
     aiBusy = false;
 
+    // ===============================
+    // 8️⃣ rendu final propre
+    // ===============================
     renderChat();
-}
-//////
+}//////
 function unlockIOSAudio(){
     if(iosAudioUnlocked) return;
     iosAudioUnlocked = true;
@@ -158,69 +176,95 @@ function unlockIOSAudio(){
 //////////////////////////////////////////////////      p l a y TTS
 function playTTS(){
 
-    const myGen = aiGeneration; //  verrou
+    const myGen = aiGeneration;
 
-    // 🚨 garde absolue anti-fuite
-    if(assistantFrozen || myGen !== aiGeneration){
-        aiSpeaking = false;
-        try{ speechSynthesis.cancel(); }catch(e){}
-        return;
-    }
-
+    // ===============================
+    // 🚨 gardes nucléaires immédiates
+    // ===============================
     if(!speakerEnabled) return;
     if(aiSpeaking) return;
+    if(assistantFrozen) return;
+    if(aiWasInterrupted) return;
+    if(ttsKilledGeneration === myGen) return;
+    if(myGen !== aiGeneration) return;
     if(ttsQueue.length === 0) return;
 
-    let item = ttsQueue.shift();
+    const item = ttsQueue.shift();
     if(!item) return;
 
+    const u = new SpeechSynthesisUtterance(item.tts);
 
-    aiSpeaking = true;
-
-    let u = new SpeechSynthesisUtterance(item.tts);
-
-    u.lang = "fr-FR";
-    u.rate = 1;
+    u.lang  = "fr-FR";
+    u.rate  = 1;
     u.pitch = 1.6;
 
+    // ===============================
+    // ▶️ ONSTART (point critique)
+    // ===============================
     u.onstart = ()=>{
 
-        //  garde unique atomique
-        if(myGen !== aiGeneration || assistantFrozen){
-            aiSpeaking = false;
-            return;
-        }
+        // 🔒 triple verrou anti-race
+        if(myGen !== aiGeneration) return;
+        if(assistantFrozen) return;
+        if(aiWasInterrupted) return;
+        if(ttsKilledGeneration === myGen) return;
 
-        // append SEULEMENT si toujours valide
+        aiSpeaking = true;
+
+        // ✅ append SEULEMENT si toujours valide
         assistantVisible += item.raw;
 
-        if(!assistantFrozen && myGen === aiGeneration){
-            renderLiveAssistant(assistantVisible);
-        }
+        renderLiveAssistant(assistantVisible);
     };
 
+    // ===============================
+    // ⏹️ ONEND
+    // ===============================
     u.onend = ()=>{
-        aiSpeaking = false;
-        if(myGen !== aiGeneration || assistantFrozen) return;
-        playTTS();
-    };
 
-    u.onerror = ()=>{
         aiSpeaking = false;
+
+        // 🔒 ne rien relancer si interrompu
+        if(myGen !== aiGeneration) return;
         if(assistantFrozen) return;
+        if(aiWasInterrupted) return;
+        if(ttsKilledGeneration === myGen) return;
+
+        // ▶️ continuer la file
         playTTS();
     };
 
-    speechSynthesis.speak(u);
-}
-//// fin playTTS
+    // ===============================
+    // ❌ ONERROR
+    // ===============================
+    u.onerror = ()=>{
+
+        aiSpeaking = false;
+
+        if(assistantFrozen) return;
+        if(aiWasInterrupted) return;
+        if(ttsKilledGeneration === myGen) return;
+
+        playTTS();
+    };
+
+    // ===============================
+    // 🚀 SPEAK (protégé)
+    // ===============================
+    try{
+        speechSynthesis.speak(u);
+    }catch(e){
+        aiSpeaking = false;
+    }
+}//// fin playTTS
 
 //////
 function speakChunk(){
 
+    if(aiWasInterrupted) return;
     if(assistantFrozen) return;
     if(aiGeneration === interruptedGeneration) return;
-    if(ttsBuffer.length < 8) return;
+    if(ttsBuffer.length < 3) return;
 
     let cut = findCutPoint(ttsBuffer);
     if(cut === -1) return;
@@ -325,7 +369,7 @@ function renderLiveAssistant(text){
 function findCutPoint(text){
 
     // ponctuation forte
-    let strong = /([.!?])(?=\s+[A-ZÀ-Ÿ-])/g;
+    let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ-])/g;
     let m, last = -1;
 
     while ((m = strong.exec(text)) !== null) {
@@ -402,6 +446,7 @@ function cleanAssistantText(text){
 function commitAssistant(text){
 
     if(assistantMessageCommitted) return;
+    if(assistantFrozen && aiWasInterrupted === false) return;
 
     const clean = (text || "").trim();
     if(!clean) return;
@@ -433,7 +478,6 @@ function sendToAI_php(chatBuffer){
     assistantFrozen = false;
     assistantMessageCommitted = false;
     aiWasInterrupted = false;
-    dropInterruptedAssistant = false;
 
     let lastSize = 0;
     //------------------------------------------
@@ -450,6 +494,7 @@ function sendToAI_php(chatBuffer){
 
     xhr.onprogress = ()=>{ // toutes les 50ms
 
+        if(assistantFrozen) return;
         if(myGen !== aiGeneration || assistantFrozen) return;
 
         let chunk = xhr.responseText.substring(lastSize);
@@ -483,33 +528,34 @@ function sendToAI_php(chatBuffer){
         }
     };
 
-    xhr.onload = ()=>{ // fin succes
+    xhr.onload = ()=>{
 
         if(myGen !== aiGeneration) return;
 
         aiStreaming = false;
         aiBusy = false;
 
+        // 🚨 SI INTERRUPTION → JAMAIS DE COMMIT
+        if(assistantFrozen){
+            return;
+        }
+
         if(!assistantFrozen){
             flushTTS();
         }
 
-        // FIN NORMALE
-        if(
-            !assistantMessageCommitted &&
-            myGen === aiGeneration &&
-            interruptedGeneration !== myGen
-        ){
+        // FIN NORMALE UNIQUEMENT
+        if(!assistantMessageCommitted){
 
-        const finalText =
-            assistantVisible.trim().length > 0
-            ? assistantVisible.trim()
-            : assistantPending.trim();   //  FALLBACK CRITIQUE
+            const finalText =
+                assistantVisible.trim().length > 0
+                ? assistantVisible.trim()
+                : assistantPending.trim();
 
-            commitAssistant(finalText)
+            console.log("----------> finalText: " + finalText);
+            commitAssistant(finalText);
         }
     };
-
     xhr.onerror = ()=>{
         aiStreaming = false;
         aiBusy = false;
@@ -539,3 +585,7 @@ $("#spkBtn").click(()=>{
 
 }); // *********************************************  F I N   R E A D Y
 //  *******************************************************************
+/*$("#spkBtn").trigger("click");
+  setTimeout(()=>{
+  $("#spkBtn").trigger("click");
+}, 5);*/

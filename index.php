@@ -46,7 +46,7 @@ if (empty($_SESSION['csrf'])) {
     <script src="mobileBUGFix.js"></script>
     <!--                          chatTrace    ------------------------------>
     <div class="container p-3">
-      <textarea id="chat" class="form-control p-3 mb-2" style="height:600px;overflow:auto"></textarea>
+      <textarea id="chat" class="form-control p-3 mb-2" style="height:500px;overflow:auto"></textarea>
       <!--<textarea id="input" class="form-control"></textarea>-->
       <div class="mt-2">
         <button id="micBtn" class="btn btn-secondary">🎤</button>
