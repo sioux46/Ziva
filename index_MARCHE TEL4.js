@@ -1,7 +1,7 @@
 // index.js
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.02.28.1";
+var zivaVersion = "v6.02.26.1";
 
 let chatBuffer = [];
 
@@ -177,6 +177,16 @@ function interruptAI(){
     renderChat();
 }
 
+//////
+function unlockIOSAudio(){
+    if(iosAudioUnlocked) return;
+    iosAudioUnlocked = true;
+
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    speechSynthesis.speak(u);
+}
+
 /////////////////////////                         S Y N T H E S I S
 
 //////////////////////////////////////////////////      p l a y TTS
@@ -342,10 +352,6 @@ function renderChat() {
     if (assistantVisible && !assistantMessageCommitted) {
         out += assistantVisible + "\n";
     }
-
-    // supprimer doublon dans #chat
-    out = supDoublons(out);
-
     $("#chat").text(out);
     console.log("---------------- renderChat >>> " + out);
 }
@@ -357,7 +363,6 @@ function renderLiveAssistant(text){
     // sécurité
     if(typeof text !== "string") return;
 
-
     // texte utilisateur déjà validé
     let history = "";
 
@@ -368,25 +373,9 @@ function renderLiveAssistant(text){
     //  on ajoute le flux assistant en cours
     let out = history + text;
 
-    // supprimer doublon dans #chat
-    out = supDoublons(out);
-
     // rendu TEXTE PUR (jamais html)
     $("#chat").text(out);
     console.log("---------------- renderLIve >>> " + out);
-}
-
-//////
-function supDoublons(out) {
-
-  // supprimer doublon dans #chat
-  const sansDoublon = out.split('\n').slice(0, -1).join('\n'); // sup der ligne
-  if ( sansDoublon != "" ) {
-    if ( out.split('\n').pop() == sansDoublon.split('\n').pop() ) {
-      out = sansDoublon;
-    }
-  }
-  return out;
 }
 
 /*//////
@@ -572,13 +561,6 @@ function echoScore(a, b){
     return hit / aw.length;
 }
 
-function commonPrefixLength(a, b){
-    const max = Math.min(a.length, b.length);
-    let i = 0;
-    while(i < max && a[i] === b[i]) i++;
-    return i;
-}
-
 function looksLikeEcho(userText){
 
     const ref = assistantVisible || assistantPending;
@@ -587,30 +569,19 @@ function looksLikeEcho(userText){
     const a = normalizeEchoText(userText);
     const b = normalizeEchoText(ref);
 
+    // trop court = probablement humain
     if (a.length < 6) return false;
 
-    // ===============================
-    // 🔥 préfixe long (très fiable)
-    // ===============================
-    const MIN_PREFIX = 24;
-
-    if (b.startsWith(a) && a.length >= MIN_PREFIX) return true;
-    if (a.startsWith(b) && b.length >= MIN_PREFIX) return true;
-
-    // ===============================
-    // 🔥 overlap caractère par caractère
-    // ===============================
-    const prefixLen = commonPrefixLength(a, b);
-    if(prefixLen > 28) return true;
-
-    // ===============================
-    // 🔥 similarité mots (fallback)
-    // ===============================
     const score = echoScore(a, b);
 
-    return score > 0.55;
-}
+    // 🔥 phrase quasi identique (très fréquent en écho)
+    if (b.startsWith(a) || a.startsWith(b)) {
+      return true;
+    }
 
+    // 🔥 seuil empirique robuste
+    return score > 0.48;
+}
 
 ////////////////////////////////////////////        STREAMING MISTRAL
 function sendToAI_php(chatBuffer){
@@ -722,21 +693,13 @@ function sendToAI_php(chatBuffer){
 }
 
 //////
-function unlockIOSAudio(){
-    if(iosAudioUnlocked) return;
-    iosAudioUnlocked = true;
-
-    const u = new SpeechSynthesisUtterance(" ");
-    u.volume = 0;
-    speechSynthesis.speak(u);
-}
 
 // ******************************************************************
 // *********************************************   $ready$  R E A D Y
 $(document).ready(function () {
 
 //  micro
-$("#micBtn").on("click", () => {
+$("#micBtn").click(()=>{
   unlockIOSAudio();  //  déverrouille iOS
   micEnabled=!micEnabled;
   micEnabled ? recognition.start() : recognition.stop();
@@ -744,11 +707,10 @@ $("#micBtn").on("click", () => {
 });
 
 // haut-parleur
-$("#spkBtn").on("click", () => {
+$("#spkBtn").click(()=>{
   unlockIOSAudio();  //  déverrouille iOS
   speakerEnabled=!speakerEnabled;
   $("#spkBtn").toggleClass("btn-warning",speakerEnabled);
-
 });
 
 }); // *********************************************  F I N   R E A D Y
