@@ -63,11 +63,11 @@ recognition.onend = ()=>{
   recognition.onresult = e => {
 
       // A revoir pour tablette ???
-      /*// ignore écho trop proche du TTS
+      // ignore écho trop proche du TTS
       if(Date.now() - lastTTSEnd < 400){ // 2400
         console.log("Echo: " + (Date.now() - lastTTSEnd));
         return;
-      }*/
+      }
 
       let finalText = "";
 
@@ -96,7 +96,7 @@ recognition.onend = ()=>{
               // garantit que le snapshot est bien écrit
               renderChat();
               submitUser(finalText);
-          }, 100); //  TRES TRES SENSIBLE ???
+          }, 320); // 220
       }
       else{
           submitUser(finalText);
@@ -461,7 +461,7 @@ function findCutPoint(text){
     // 4️⃣ 🔥 NOUVEAU : coupe de secours par longueur
     // (super important pour la réactivité)
     // ===============================
-    if(text.length > 45){ // 60  120   TRES TRES SENSIBLE ???
+    if(text.length > 120){
 
         // coupe au dernier espace propre
         let space = text.lastIndexOf(" ");

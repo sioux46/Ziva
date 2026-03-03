@@ -461,7 +461,7 @@ function findCutPoint(text){
     // 4️⃣ 🔥 NOUVEAU : coupe de secours par longueur
     // (super important pour la réactivité)
     // ===============================
-    if(text.length > 45){ // 60  120   TRES TRES SENSIBLE ???
+    if(text.length > 120){
 
         // coupe au dernier espace propre
         let space = text.lastIndexOf(" ");
