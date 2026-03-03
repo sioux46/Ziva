@@ -62,12 +62,12 @@ recognition.onend = ()=>{
 //-------------------------------
   recognition.onresult = e => {
 
-      // A revoir pour tablette ??????????????????
-      /*// ignore écho trop proche du TTS
-      if(Date.now() - lastTTSEnd < 2400){
+      // A revoir pour tablette ???
+      // ignore écho trop proche du TTS
+      if(Date.now() - lastTTSEnd < 400){ // 2400
         console.log("Echo: " + (Date.now() - lastTTSEnd));
         return;
-      }*/
+      }
 
       let finalText = "";
 
@@ -221,7 +221,7 @@ function playTTS(){
         // ✅ append SEULEMENT si toujours valide
         assistantVisible += item.raw;
 
-        //renderLiveAssistant(assistantVisible); ?
+        renderLiveAssistant(assistantVisible);
     };
 
     // ===============================
@@ -675,7 +675,7 @@ function sendToAI_php(chatBuffer){
               // fallback visuel si pas de TTS
               if(!speakerEnabled){
                   assistantVisible = assistantPending;
-                  renderLiveAssistant(assistantVisible);
+                  //renderLiveAssistant(assistantVisible); ???
               }
               speakChunk();
             }
