@@ -1,10 +1,12 @@
 <?php
 // declare(strict_types=1);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-ini_set("display_errors", 1);
 
 session_start();
-require_once("sysMessages.php");
+//require_once("sysMessages.php");
+require_once("sysMesDeva.php");
 
 /* ─────────────────────────────────────────────
    0. Session hardening

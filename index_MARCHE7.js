@@ -62,11 +62,12 @@ recognition.onend = ()=>{
 //-------------------------------
   recognition.onresult = e => {
 
-      // ignore écho trop proche du TTS
+      // A revoir pour tablette ??????????????????
+      /*// ignore écho trop proche du TTS
       if(Date.now() - lastTTSEnd < 2400){
-        console.log("Echo: " + Date.now() - lastTTSEnd);
+        console.log("Echo: " + (Date.now() - lastTTSEnd));
         return;
-      }
+      }*/
 
       let finalText = "";
 
@@ -220,7 +221,7 @@ function playTTS(){
         // ✅ append SEULEMENT si toujours valide
         assistantVisible += item.raw;
 
-        renderLiveAssistant(assistantVisible);
+        //renderLiveAssistant(assistantVisible); ?
     };
 
     // ===============================
@@ -229,6 +230,7 @@ function playTTS(){
     u.onend = ()=>{
 
         aiSpeaking = false;
+        lastTTSEnd = Date.now();
 
         // 🔒 ne rien relancer si interrompu
         if(myGen !== aiGeneration) return;
@@ -262,7 +264,8 @@ function playTTS(){
     }catch(e){
         aiSpeaking = false;
     }
-}//// fin playTTS
+}
+//// fin playTTS
 
 //////
 function speakChunk(){
@@ -380,14 +383,13 @@ function renderLiveAssistant(text){
 function supDoublons(out) {
 
   // supprimer doublon dans #chat
-  let result = out;
-  const sansDoublon = result.split('\n').slice(0, -1).join('\n'); // sup der ligne
+  const sansDoublon = out.split('\n').slice(0, -1).join('\n'); // sup der ligne
   if ( sansDoublon != "" ) {
-    if ( result.split('\n').pop() == sansDoublon.split('\n').pop() ) {
-      result = sansDoublon;
+    if ( out.split('\n').pop() == sansDoublon.split('\n').pop() ) {
+      out = sansDoublon;
     }
   }
-  return result;
+  return out;
 }
 
 /*//////

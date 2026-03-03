@@ -1,7 +1,7 @@
 // index.js
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.02.28.1";
+var zivaVersion = "v6.03.03.1";
 
 let chatBuffer = [];
 
@@ -62,11 +62,12 @@ recognition.onend = ()=>{
 //-------------------------------
   recognition.onresult = e => {
 
-      // ignore écho trop proche du TTS
+      // A revoir pour tablette ??????????????????
+      /*// ignore écho trop proche du TTS
       if(Date.now() - lastTTSEnd < 2400){
-        console.log("Echo: " + Date.now() - lastTTSEnd);
+        console.log("Echo: " + (Date.now() - lastTTSEnd));
         return;
-      }
+      }*/
 
       let finalText = "";
 
@@ -220,7 +221,7 @@ function playTTS(){
         // ✅ append SEULEMENT si toujours valide
         assistantVisible += item.raw;
 
-        renderLiveAssistant(assistantVisible);
+        //renderLiveAssistant(assistantVisible); ?
     };
 
     // ===============================
@@ -229,6 +230,7 @@ function playTTS(){
     u.onend = ()=>{
 
         aiSpeaking = false;
+        lastTTSEnd = Date.now();
 
         // 🔒 ne rien relancer si interrompu
         if(myGen !== aiGeneration) return;
@@ -262,7 +264,8 @@ function playTTS(){
     }catch(e){
         aiSpeaking = false;
     }
-}//// fin playTTS
+}
+//// fin playTTS
 
 //////
 function speakChunk(){

@@ -8,7 +8,7 @@ $sysM = <<<SYSMESSAGES
     NE PAS ÉCRIRE: "Nous sommes le **mardi 11 juin 2024**."
     ÉCRIRE: "Nous sommes le mardi 11 juin 2024."
 - Réponds sans corriger l’utilisateur sauf demande explicite.
-- N'ajoute aucune suggestion.
+- Fais des réponses concises, très courtes et synthétiques (Pas plus de trois phrases)
 - si on te demande d'arreter ta réponse, arrête-toi et demande simplement si on veut autre chose.
 SYSMESSAGES;
 
@@ -23,5 +23,6 @@ return($sysM);
     Exemple: Ne dis pas "Je me tais. Dis-moi simplement quand tu veux reprendre." mais simplement "D'accord, je me tais." ou "Bien sûr, je m'arrête ici."*/
 
 //- Fais des réponses concises, très courtes et synthétiques.
+//- N'ajoute aucune suggestion.
 
 ?>
