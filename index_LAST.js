@@ -32,10 +32,17 @@ let xhrLLM = null;
 let micEnabled = false;
 let speakerEnabled = true;
 
+let lastFinalTranscript = "";
+let lastFinalTime = 0;
+
+let lastInterruptTime = 0;
+
 // iOS
 let iosAudioUnlocked = false;
 
 const synth = window.speechSynthesis;
+
+let recognitionRunning = false;
 
 //                                              R E C O G N I T I O N
 
@@ -62,25 +69,65 @@ recognition.onend = ()=>{
 //-------------------------------
   recognition.onresult = e => {
 
+      // 🚨 ignore STT juste après interruption
+      if(Date.now() - lastInterruptTime < 600){
+        console.log("IGNORED post-interrupt noise");
+        return;
+      }
+
       // A revoir pour tablette ???
-      /*// ignore écho trop proche du TTS
+      // ignore écho trop proche du TTS
       if(Date.now() - lastTTSEnd < 400){ // 2400
         console.log("Echo: " + (Date.now() - lastTTSEnd));
         return;
-      }*/
+      }
 
       let finalText = "";
 
       for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+              finalText = e.results[i][0].transcript; // ⚠️ PAS +=
+          }
+      }
+      /*for (let i = e.resultIndex; i < e.results.length; i++) {
           if(e.results[i].isFinal){
               finalText += e.results[i][0].transcript;
           }
-      }
+      }*/
+
+
 
       if(!finalText) return;
 
+      // 🚨 anti-répétition Android
+      const now = Date.now();
+      const normalized = normalizeEchoText(finalText);
+
+      // ignore si très proche du précédent
+      if (
+          normalized &&
+          (
+              normalized === lastFinalTranscript ||
+              normalized.startsWith(lastFinalTranscript) ||
+              lastFinalTranscript.startsWith(normalized)
+          ) &&
+          (now - lastFinalTime < 2500)
+      ){
+          console.log("IGNORED duplicate STT (global)");
+          return;
+      }
+
+      lastFinalTranscript = normalized;
+      lastFinalTime = now;
+
+
+
       // 🚨 filtre anti-écho intelligent
-      const echoWindow = Date.now() - lastTTSEnd < 2600;
+      //const echoWindow = Date.now() - lastTTSEnd < 900;   // 2600 ???
+      /*const echoWindow =
+        aiSpeaking || (Date.now() - lastTTSEnd < 1200 && assistantVisible.length > 40);*/
+        const echoWindow =
+          aiSpeaking || (Date.now() - lastTTSEnd < 2200 && assistantVisible.length > 20);
 
       if ((aiSpeaking || echoWindow) && looksLikeEcho(finalText)) {
           console.log("------------>>> IGNORED: echo detected");
@@ -96,10 +143,12 @@ recognition.onend = ()=>{
               // garantit que le snapshot est bien écrit
               renderChat();
               submitUser(finalText);
-          }, 100); //  TRES TRES SENSIBLE ???
+          }, 250); // 100  TRES TRES SENSIBLE ???
       }
       else{
-          submitUser(finalText);
+
+
+        submitUser(finalText);
       }
   };
 
@@ -120,6 +169,8 @@ function interruptAI(){
     //console.log("assistantVisible: " + assistantVisible);
     //console.log("assistantPending: " + assistantPending);
 
+    lastInterruptTime = Date.now();
+
     // ===============================
     // 1️⃣ marquer interruption AVANT tout
     // ===============================
@@ -133,9 +184,7 @@ function interruptAI(){
     // ===============================
     // 2️⃣ snapshot EXACT de ce qui a été parlé
     // ===============================
-    //const snapshot = cleanAssistantText(assistantVisible || assistantPending);
-    const snapshot = cleanAssistantText(assistantVisible); // ???
-    assistantPending = assistantVisible; // 🔥 aligne la vérité
+    const snapshot = cleanAssistantText(assistantVisible || assistantPending);
 
     // ===============================
     // 3️⃣ STOP réseau IMMÉDIAT
@@ -165,8 +214,10 @@ function interruptAI(){
     // ===============================
     // 6️⃣ commit IMMÉDIAT du snapshot
     // ===============================
+    let didCommit = false;
     if(snapshot && snapshot.trim().length > 0){
         commitAssistant(snapshot);
+        didCommit = true;
     }
 
     // ===============================
@@ -177,7 +228,7 @@ function interruptAI(){
     // ===============================
     // 8️⃣ rendu final propre
     // ===============================
-    renderChat();
+    if(didCommit) renderChat();
 }
 
 /////////////////////////                         S Y N T H E S I S
@@ -275,7 +326,9 @@ function speakChunk(){
     if(aiWasInterrupted) return;
     if(assistantFrozen) return;
     if(aiGeneration === interruptedGeneration) return;
-    if(ttsBuffer.length < 20) return;  // 3
+
+    const minChunk = aiSpeaking ? 40 : 12;
+    if(ttsBuffer.length < minChunk) return;
 
     let cut = findCutPoint(ttsBuffer);
     if(cut === -1) return;
@@ -378,7 +431,7 @@ function renderLiveAssistant(text){
 
     // rendu TEXTE PUR (jamais html)
     $("#chat").text(out);
-    console.log("---------------- renderLIve >>> " + out);
+    console.log("---------------- renderLiveAssistant >>> " + out);
 }
 
 //////
@@ -394,38 +447,6 @@ function supDoublons(out) {
   return out;
 }
 
-/*//////
-function findCutPoint(text){
-
-    // ponctuation forte
-    let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ-])/g;
-    let m, last = -1;
-
-    while ((m = strong.exec(text)) !== null) {
-        last = m.index + 1;
-    }
-    if(last !== -1) return last;
-
-    //  saut de ligne = forte
-    let nl = text.lastIndexOf("\n");
-    if(nl > 40) return nl + 1;
-
-    //  ponctuation moyenne
-    let mid = text.lastIndexOf(";");
-    if(mid > 80) return mid + 1;
-
-    mid = text.lastIndexOf(":");
-    if(mid > 80) return mid + 1;
-
-    //  virgule (faible, prudente)
-    if(text.length > 160){
-        let c = text.lastIndexOf(",");
-        if(c > 80) return c + 1;
-    }
-
-    return -1;
-}*/
-
 //////
 function findCutPoint(text){
 
@@ -434,8 +455,7 @@ function findCutPoint(text){
     // ===============================
     // 1️⃣ ponctuation forte (priorité max)
     // ===============================
-    //let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ0-9«"'-])/g;
-    let strong = /([.!?])(?=\s+)/g;
+    let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ0-9«"'-])/g;
     let m, lastStrong = -1;
 
     while ((m = strong.exec(text)) !== null) {
@@ -464,8 +484,7 @@ function findCutPoint(text){
     // 4️⃣ 🔥 NOUVEAU : coupe de secours par longueur
     // (super important pour la réactivité)
     // ===============================
-    //if(text.length > 80){  //  120 ???
-    if(text.length > 120){
+    if(text.length > 80){  //  120 ???
 
         // coupe au dernier espace propre
         let space = text.lastIndexOf(" ");
@@ -481,7 +500,7 @@ function formatTTS(text){
     return text
 
         // virgules → petite pause
-        .replace(/,/g, ", ")
+        // .replace(/,/g, ", ")
 
         // point-virgule → pause moyenne
         .replace(/,/g, ", ")
@@ -618,27 +637,7 @@ function looksLikeEcho(userText){
     return score > 0.55;
 }
 
-//////
-function getBestFemaleVoice() {
 
-  const voices = speechSynthesis.getVoices();
-
-  const preferred = [
-    "Google français",
-    //"Samantha",
-    "Microsoft Hortense",
-    "Amelie"
-  ];
-
-  for (let name of preferred) {
-    const v = voices.find(v => v.name.includes(name));
-    if (v) return v;
-  }
-
-  return voices.find(v => v.lang.startsWith("fr"));
-}
-
-//////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////        STREAMING MISTRAL
 function sendToAI_php(chatBuffer){
 
@@ -682,6 +681,9 @@ function sendToAI_php(chatBuffer){
 
         for(let l of lines){
 
+            if(assistantFrozen || myGen !== aiGeneration) break;
+            if(!l.startsWith("data:")) continue;
+
             if(!l.startsWith("data:")) continue;
             if(l.includes("[DONE]")) return;
 
@@ -690,9 +692,6 @@ function sendToAI_php(chatBuffer){
 
             let tok = j.choices?.[0]?.delta?.content;
             if(!tok) continue;
-
-            // virer les asterix
-            tok = tok.replace(/\*/g, "");
 
             // NE PLUS ÉCRIRE SI GELÉ
             if(!assistantFrozen){
@@ -780,6 +779,15 @@ $("#spkBtn").on("click", () => {
   $("#spkBtn").toggleClass("btn-warning",speakerEnabled);
 
 });
+
+//////
+function isChromeAndroid(){
+  const ua = navigator.userAgent;
+
+  return /Android/i.test(ua) &&
+         /Chrome/i.test(ua) &&
+         !/EdgA|OPR|SamsungBrowser/i.test(ua);
+}
 
 }); // *********************************************  F I N   R E A D Y
 //  *******************************************************************

@@ -432,7 +432,8 @@ function findCutPoint(text){
     // ===============================
     // 1️⃣ ponctuation forte (priorité max)
     // ===============================
-    let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ0-9«"'-])/g;
+    //let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ0-9«"'-])/g;
+    let strong = /([.!?])(?=\s+)/g;
     let m, lastStrong = -1;
 
     while ((m = strong.exec(text)) !== null) {
@@ -666,6 +667,9 @@ function sendToAI_php(chatBuffer){
 
             let tok = j.choices?.[0]?.delta?.content;
             if(!tok) continue;
+
+            // virer les asterix
+            tok = tok.replace(/\*/g, "");
 
             // NE PLUS ÉCRIRE SI GELÉ
             if(!assistantFrozen){
