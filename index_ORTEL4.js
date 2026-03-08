@@ -229,7 +229,7 @@ function playTTS(){
         //console.log("assistantVisible 2: " + assistantVisible);
 
 
-        renderLiveAssistant(assistantVisible); // ???
+        renderLiveAssistant(assistantVisible);
     };
 
     // ===============================
@@ -363,7 +363,11 @@ function renderChat() {
 
 
 //////
-function renderLiveAssistant(){
+function renderLiveAssistant(text){
+
+    // sécurité
+    if(typeof text !== "string") return;
+
 
     // texte utilisateur déjà validé
     let history = "";
@@ -372,11 +376,15 @@ function renderLiveAssistant(){
         history += m.content + "\n";
     }
 
-    // supprimer doublon dans #chat
-    history = supDoublons(history);
+    //  on ajoute le flux assistant en cours
+    let out = history + text;
 
-    // rendu TEXTE
-    $("#chat").text(history);
+    // supprimer doublon dans #chat
+    out = supDoublons(out);
+
+    // rendu TEXTE PUR (jamais html)
+    $("#chat").text(out);
+    //console.log("---------------- renderLIveAssistant >>> " + out);
 }
 
 //////

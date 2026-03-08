@@ -96,7 +96,7 @@ recognition.onend = ()=>{
               // garantit que le snapshot est bien écrit
               renderChat();
               submitUser(finalText);
-          }, 40); // 100  TRES TRES SENSIBLE ???
+          }, 100); //  TRES TRES SENSIBLE ???
       }
       else{
           submitUser(finalText);
@@ -166,8 +166,6 @@ function interruptAI(){
     // 6️⃣ commit IMMÉDIAT du snapshot
     // ===============================
     if(snapshot && snapshot.trim().length > 0){
-        assistantMessageCommitted = false;
-        renderLiveAssistant(assistantVisible); //$("#chat").text("");
         commitAssistant(snapshot);
     }
 
@@ -223,13 +221,12 @@ function playTTS(){
         aiSpeaking = true;
 
         // ✅ append SEULEMENT si toujours valide
-        //console.log("assistantVisible 1: " + assistantVisible);
-        //console.log("u.onstart item.raw: " + item.raw);
         assistantVisible += item.raw;
-        //console.log("assistantVisible 2: " + assistantVisible);
+        console.log("assistantVisible: " + assistantVisible);
+        console.log("u.onstart item.row: " + item.row);
+        console.log("u.onstart item.tts: " + item.tts);
 
-
-        renderLiveAssistant(assistantVisible); // ???
+        renderLiveAssistant(assistantVisible);
     };
 
     // ===============================
@@ -281,7 +278,7 @@ function speakChunk(){
     if(aiWasInterrupted) return;
     if(assistantFrozen) return;
     if(aiGeneration === interruptedGeneration) return;
-    if(ttsBuffer.length < 10) return;  // 5 20  ???
+    if(ttsBuffer.length < 20) return;  // 3
 
     let cut = findCutPoint(ttsBuffer);
     if(cut === -1) return;
@@ -363,7 +360,11 @@ function renderChat() {
 
 
 //////
-function renderLiveAssistant(){
+function renderLiveAssistant(text){
+
+    // sécurité
+    if(typeof text !== "string") return;
+
 
     // texte utilisateur déjà validé
     let history = "";
@@ -372,11 +373,15 @@ function renderLiveAssistant(){
         history += m.content + "\n";
     }
 
-    // supprimer doublon dans #chat
-    history = supDoublons(history);
+    //  on ajoute le flux assistant en cours
+    let out = history + text;
 
-    // rendu TEXTE
-    $("#chat").text(history);
+    // supprimer doublon dans #chat
+    out = supDoublons(out);
+
+    // rendu TEXTE PUR (jamais html)
+    $("#chat").text(out);
+    //console.log("---------------- renderLIveAssistant >>> " + out);
 }
 
 //////
@@ -387,7 +392,6 @@ function supDoublons(out) {
   if ( sansDoublon != "" ) {
     if ( out.split('\n').pop() == sansDoublon.split('\n').pop() ) {
       out = sansDoublon;
-      console.log("Doublon trouvé");
     }
   }
   return out;
@@ -464,7 +468,7 @@ function findCutPoint(text){
     // (super important pour la réactivité)
     // ===============================
     //if(text.length > 80){  //  120 ???
-    if(text.length > 60){ // 120
+    if(text.length > 120){
 
         // coupe au dernier espace propre
         let space = text.lastIndexOf(" ");
@@ -520,34 +524,13 @@ function cleanAssistantText(text){
 }
 
 //////
-/*function commitAssistant(text){
+function commitAssistant(text){
 
     if(assistantMessageCommitted) return;
     //if(assistantFrozen && aiWasInterrupted === false) return;
 
     const clean = (text || "").trim();
     if(!clean) return;
-
-    chatBuffer.push({
-        role: "assistant",
-        content: clean
-    });
-
-    assistantMessageCommitted = true;
-    assistantPending = "";
-}*/
-
-//////
-function commitAssistant(text){
-
-  if(assistantMessageCommitted) return;
-
-    const clean = (text || "").trim();
-    if(!clean) return;
-
-    if(assistantFrozen && aiWasInterrupted === true) {
-      chatBuffer = chatBuffer.slice(0, -1); // sup der elem
-    }
 
     chatBuffer.push({
         role: "assistant",
@@ -660,7 +643,6 @@ function getBestFemaleVoice() {
 
 //////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////        STREAMING MISTRAL
-//////////////////////////////////////////////////////////////////////
 function sendToAI_php(chatBuffer){
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
@@ -723,7 +705,7 @@ function sendToAI_php(chatBuffer){
               // fallback visuel si pas de TTS
               if(!speakerEnabled){
                   assistantVisible = assistantPending;
-                  //renderLiveAssistant(assistantVisible); // ???
+                  //renderLiveAssistant(assistantVisible); ???
               }
               speakChunk();
             }
@@ -771,7 +753,6 @@ function sendToAI_php(chatBuffer){
 
     xhr.send(form);
 }
-/////////////////////////////////////// F I N    M I S T R A L
 
 //////
 function unlockIOSAudio(){
