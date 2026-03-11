@@ -1,7 +1,7 @@
 // index.js
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.11.1";
+var zivaVersion = "v6.03.07.1";
 
 let chatBuffer = [];
 
@@ -90,7 +90,7 @@ recognition.onresult = e => {
   }
 
   // 🚨 filtre anti-écho intelligent
-  const echoWindow = Date.now() - lastTTSEnd < 1500; // 400
+  const echoWindow = Date.now() - lastTTSEnd < 400;
 
   if ((aiSpeaking || echoWindow) && looksLikeEcho(finalText)) {
       console.log("------------>>> IGNORED: echo detected");
@@ -148,9 +148,9 @@ function interruptAI(){
     // ===============================
     // 2️⃣ snapshot EXACT de ce qui a été parlé
     // ===============================
-    const snapshot = cleanAssistantText(assistantVisible || assistantPending);
-    //const snapshot = cleanAssistantText(assistantVisible); //
-    //assistantPending = assistantVisible; // 🔥 aligne la vérité  ???
+    //const snapshot = cleanAssistantText(assistantVisible || assistantPending);
+    const snapshot = cleanAssistantText(assistantVisible); // ???
+    assistantPending = assistantVisible; // 🔥 aligne la vérité
 
     // ===============================
     // 3️⃣ STOP réseau IMMÉDIAT
@@ -324,10 +324,7 @@ function submitUser(text){
     if(aiBusy) return;
     aiBusy = true;
 
-    text = text.trim().replace(/\s+/g," "); // bonus filtre écho
-
-    if ( aiWasInterrupted ) text = "--> Interruption: " + text;
-    else text = "--> " + text;
+    if ( aiWasInterrupted ) text = "Interruption: " + text;
     addUser(text);
     sendToAI_php(chatBuffer);
 }
@@ -452,7 +449,7 @@ function findCutPoint(text){
     // ===============================
     // 1️⃣ ponctuation forte (priorité max)
     // ===============================
-    //let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ-])/g;
+    //let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ0-9«"'-])/g;
     let strong = /([.!?])(?=\s+)/g;
     let m, lastStrong = -1;
 
@@ -462,13 +459,6 @@ function findCutPoint(text){
     if(lastStrong !== -1) {
       console.log("-------->>> strong cut");
       return lastStrong;
-    }
-
-    //  saut de ligne = forte
-    let nl = text.lastIndexOf("\n");
-    if(nl > 40) {
-      console.log("-------->>> cut saut de ligne");
-      return nl + 1;
     }
 
     // ===============================
@@ -513,7 +503,7 @@ function findCutPoint(text){
 }
 
 //////
-function formatTTS(text){ // prosodie
+function formatTTS(text){
 
     return text
 
@@ -584,10 +574,7 @@ function commitAssistant(text){
     if(!clean) return;
 
     if(assistantFrozen && aiWasInterrupted === true) {
-      //chatBuffer = chatBuffer.slice(0, -1); // sup der elem
-      if(chatBuffer.length && chatBuffer.at(-1).role === "assistant"){
-          chatBuffer.pop();
-      }
+      chatBuffer = chatBuffer.slice(0, -1); // sup der elem
     }
 
     chatBuffer.push({
@@ -656,13 +643,6 @@ function looksLikeEcho(userText){
     const b = normalizeEchoText(ref);
 
     if (a.length < 6) return false;
-
-    // 🔥 garde absolue simple (nouvelle)
-    if(assistantVisible && userText.length > 6){
-        if(assistantVisible.toLowerCase().includes(userText.toLowerCase())){
-            return true;
-        }
-    }
 
     // ===============================
     // 🔥 préfixe long (très fiable)
@@ -741,7 +721,7 @@ function sendToAI_php(chatBuffer){
             if(!tok) continue;
 
             // virer les asterix
-            tok = tok.replace(/\*+/g, '"');
+            tok = tok.replace(/\*/g, "");
 
             // NE PLUS ÉCRIRE SI GELÉ
             if(!assistantFrozen){
@@ -828,6 +808,26 @@ function startSilenceWatcher(){
     }, 1000);
 }
 
+//////
+function getBestFemaleVoice() {  // not used
+
+  const voices = speechSynthesis.getVoices();
+
+  const preferred = [
+    "Google français",
+    //"Samantha",
+    "Microsoft Hortense",
+    "Amelie"
+  ];
+
+  for (let name of preferred) {
+    const v = voices.find(v => v.name.includes(name));
+    if (v) return v;
+  }
+
+  return voices.find(v => v.lang.startsWith("fr"));
+}
+
 // ******************************************************************
 // *********************************************   $ready$  R E A D Y
 $(document).ready(function () {
@@ -859,23 +859,3 @@ $("#spkBtn").on("click", () => {
 
 }); // *********************************************  F I N   R E A D Y
 //  *******************************************************************
-
-//////
-function getBestFemaleVoice() {  // not used
-
-  const voices = speechSynthesis.getVoices();
-
-  const preferred = [
-    "Google français",
-    //"Samantha",
-    "Microsoft Hortense",
-    "Amelie"
-  ];
-
-  for (let name of preferred) {
-    const v = voices.find(v => v.name.includes(name));
-    if (v) return v;
-  }
-
-  return voices.find(v => v.lang.startsWith("fr"));
-}

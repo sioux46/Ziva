@@ -1,13 +1,9 @@
 // index.js
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.11.1";
+var zivaVersion = "v6.03.07.1";
 
 let chatBuffer = [];
-
-// une minute de silence
-let lastSpeechTime = Date.now();
-let silenceWatcher = null;
 
 // états IA
 let aiStreaming = false;
@@ -66,10 +62,17 @@ recognition.onend = ()=>{
 //-------------------------------
 recognition.onresult = e => {
 
+  // ignore écho trop proche du TTS
+  /*if(Date.now() - lastTTSEnd < 2400){
+      console.log("Echo: " + Date.now() - lastTTSEnd);
+      return;
+  }*/
+
   let finalText = "";
   let interimText = "";
 
   for (let i = e.resultIndex; i < e.results.length; i++) {
+
       const transcript = e.results[i][0].transcript;
 
       if(e.results[i].isFinal){
@@ -85,12 +88,9 @@ recognition.onresult = e => {
 
   if(!bargeText) return;
 
-  if(!aiSpeaking){ // début silence
-      lastSpeechTime = Date.now();
-  }
 
   // 🚨 filtre anti-écho intelligent
-  const echoWindow = Date.now() - lastTTSEnd < 1500; // 400
+  const echoWindow = Date.now() - lastTTSEnd < 400;
 
   if ((aiSpeaking || echoWindow) && looksLikeEcho(finalText)) {
       console.log("------------>>> IGNORED: echo detected");
@@ -104,15 +104,17 @@ recognition.onresult = e => {
     interruptAI();
 
     setTimeout(()=>{
+
       renderChat();
+
       // on envoie au LLM seulement si final
       if(finalText){
           submitUser(finalText);
       }
     }, 40);
+
     return;
   }
-
   if(finalText){
       submitUser(finalText);
   }
@@ -148,9 +150,9 @@ function interruptAI(){
     // ===============================
     // 2️⃣ snapshot EXACT de ce qui a été parlé
     // ===============================
-    const snapshot = cleanAssistantText(assistantVisible || assistantPending);
-    //const snapshot = cleanAssistantText(assistantVisible); //
-    //assistantPending = assistantVisible; // 🔥 aligne la vérité  ???
+    //const snapshot = cleanAssistantText(assistantVisible || assistantPending);
+    const snapshot = cleanAssistantText(assistantVisible); // ???
+    assistantPending = assistantVisible; // 🔥 aligne la vérité
 
     // ===============================
     // 3️⃣ STOP réseau IMMÉDIAT
@@ -324,10 +326,6 @@ function submitUser(text){
     if(aiBusy) return;
     aiBusy = true;
 
-    text = text.trim().replace(/\s+/g," "); // bonus filtre écho
-
-    if ( aiWasInterrupted ) text = "--> Interruption: " + text;
-    else text = "--> " + text;
     addUser(text);
     sendToAI_php(chatBuffer);
 }
@@ -452,24 +450,14 @@ function findCutPoint(text){
     // ===============================
     // 1️⃣ ponctuation forte (priorité max)
     // ===============================
-    //let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ-])/g;
+    //let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ0-9«"'-])/g;
     let strong = /([.!?])(?=\s+)/g;
     let m, lastStrong = -1;
 
     while ((m = strong.exec(text)) !== null) {
         lastStrong = m.index + 1;
     }
-    if(lastStrong !== -1) {
-      console.log("-------->>> strong cut");
-      return lastStrong;
-    }
-
-    //  saut de ligne = forte
-    let nl = text.lastIndexOf("\n");
-    if(nl > 40) {
-      console.log("-------->>> cut saut de ligne");
-      return nl + 1;
-    }
+    if(lastStrong !== -1) return lastStrong;
 
     // ===============================
     // 2️⃣ ponctuation moyenne
@@ -477,10 +465,7 @@ function findCutPoint(text){
     const mid = [";", ":", "—", "–", ")"];
     for(let p of mid){
         let idx = text.lastIndexOf(p);
-        if(idx > 30) {
-          console.log("-------->>> moyenne cut");
-          return idx + 1;
-        }
+        if(idx > 30) return idx + 1;
     }
 
     // ===============================
@@ -488,10 +473,7 @@ function findCutPoint(text){
     // ===============================
     if(text.length > 60){
         let c = text.lastIndexOf(",");
-        if(c > 30) {
-          console.log("-------->>> virgule agressive (clé barge-in)");
-          return c + 1;
-        }
+        if(c > 30) return c + 1;
     }
 
     // ===============================
@@ -499,21 +481,18 @@ function findCutPoint(text){
     // (super important pour la réactivité)
     // ===============================
     //if(text.length > 80){  //  120 ???
-    if(text.length > 60) { // 120
+    if(text.length > 60){ // 120
 
         // coupe au dernier espace propre
         let space = text.lastIndexOf(" ");
-        if(space > 40) {
-          console.log("-------->>> cut au dernier espace propre");
-          return space;
-        }
+        if(space > 40) return space;
     }
 
     return -1;
 }
 
 //////
-function formatTTS(text){ // prosodie
+function formatTTS(text){
 
     return text
 
@@ -584,10 +563,7 @@ function commitAssistant(text){
     if(!clean) return;
 
     if(assistantFrozen && aiWasInterrupted === true) {
-      //chatBuffer = chatBuffer.slice(0, -1); // sup der elem
-      if(chatBuffer.length && chatBuffer.at(-1).role === "assistant"){
-          chatBuffer.pop();
-      }
+      chatBuffer = chatBuffer.slice(0, -1); // sup der elem
     }
 
     chatBuffer.push({
@@ -657,13 +633,6 @@ function looksLikeEcho(userText){
 
     if (a.length < 6) return false;
 
-    // 🔥 garde absolue simple (nouvelle)
-    if(assistantVisible && userText.length > 6){
-        if(assistantVisible.toLowerCase().includes(userText.toLowerCase())){
-            return true;
-        }
-    }
-
     // ===============================
     // 🔥 préfixe long (très fiable)
     // ===============================
@@ -684,6 +653,26 @@ function looksLikeEcho(userText){
     const score = echoScore(a, b);
 
     return score > 0.55;
+}
+
+//////
+function getBestFemaleVoice() {  // not used
+
+  const voices = speechSynthesis.getVoices();
+
+  const preferred = [
+    "Google français",
+    //"Samantha",
+    "Microsoft Hortense",
+    "Amelie"
+  ];
+
+  for (let name of preferred) {
+    const v = voices.find(v => v.name.includes(name));
+    if (v) return v;
+  }
+
+  return voices.find(v => v.lang.startsWith("fr"));
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -741,7 +730,7 @@ function sendToAI_php(chatBuffer){
             if(!tok) continue;
 
             // virer les asterix
-            tok = tok.replace(/\*+/g, '"');
+            tok = tok.replace(/\*/g, "");
 
             // NE PLUS ÉCRIRE SI GELÉ
             if(!assistantFrozen){
@@ -778,6 +767,8 @@ function sendToAI_php(chatBuffer){
           flushTTS();
       }
 
+
+
       // FIN NORMALE UNIQUEMENT
       if(!assistantMessageCommitted){
 
@@ -809,47 +800,19 @@ function unlockIOSAudio(){
     speechSynthesis.speak(u);
 }
 
-//////
-function startSilenceWatcher(){
-
-    if(silenceWatcher) clearInterval(silenceWatcher);
-    silenceWatcher = setInterval(()=>{
-        if(!micEnabled) return;
-
-        const silence = Date.now() - lastSpeechTime;
-        if(silence > 60000){   // 1 minute
-            console.log("Micro coupé : 1 minute de silence");
-            clearInterval(silenceWatcher);
-            silenceWatcher = null;
-
-            $("#micBtn").trigger("click"); // simule clic bouton
-        }
-
-    }, 1000);
-}
-
 // ******************************************************************
 // *********************************************   $ready$  R E A D Y
 $(document).ready(function () {
 
-///////  micro
+//  micro
 $("#micBtn").on("click", () => {
-  unlockIOSAudio();
-
-  micEnabled = !micEnabled;
-
-  if(micEnabled){
-      recognition.start();
-      lastSpeechTime = Date.now();
-      startSilenceWatcher();
-  }else{
-      recognition.stop();
-  }
-
+  unlockIOSAudio();  //  déverrouille iOS
+  micEnabled=!micEnabled;
+  micEnabled ? recognition.start() : recognition.stop();
   $("#micBtn").toggleClass("btn-danger",micEnabled);
 });
 
-/////// haut-parleur
+// haut-parleur
 $("#spkBtn").on("click", () => {
   unlockIOSAudio();  //  déverrouille iOS
   speakerEnabled=!speakerEnabled;
@@ -859,23 +822,7 @@ $("#spkBtn").on("click", () => {
 
 }); // *********************************************  F I N   R E A D Y
 //  *******************************************************************
-
-//////
-function getBestFemaleVoice() {  // not used
-
-  const voices = speechSynthesis.getVoices();
-
-  const preferred = [
-    "Google français",
-    //"Samantha",
-    "Microsoft Hortense",
-    "Amelie"
-  ];
-
-  for (let name of preferred) {
-    const v = voices.find(v => v.name.includes(name));
-    if (v) return v;
-  }
-
-  return voices.find(v => v.lang.startsWith("fr"));
-}
+/*$("#spkBtn").trigger("click");
+  setTimeout(()=>{
+  $("#spkBtn").trigger("click");
+}, 5);*/
