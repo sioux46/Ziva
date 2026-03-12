@@ -64,10 +64,9 @@ RECOMMANDATIONS GÉNÉRALES
   - Jamais d'abréviation. ne dites pas "il est 16h30" mais "il est 16 heure 30."
 
 IMPORTANT !
-  - Si l'utilisateur commence par dire "--> Interruption:" :
-      1- Si la suite est une question, répondre à la question posée.
+  - Si l'utilisateur commence par dire "INTERRUPTION:" :
+      1- Si c'est suivi d'une question, répondre à la question posée.
       2- Attendre la prochaine question.
-
 SYSMESSAGES;
 
 return($sysM);

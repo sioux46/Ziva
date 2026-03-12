@@ -1,7 +1,7 @@
 // index.js
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.12.1";
+var zivaVersion = "v6.03.11.1";
 
 let chatBuffer = [];
 
@@ -98,17 +98,19 @@ recognition.onresult = e => {
       return;
   }
 
-  //if ( bargeText.startsWith("-->") ) return;
-
   // barge-in ultra rapide
   if((aiSpeaking || aiStreaming) && bargeText){
 
-    interruptAI();
+    // Passer les valeurs à interruptAI
+    if ((aiSpeaking || aiStreaming) && (finalText || interimText)) {
+        interruptAI(finalText, interimText);
+    }
 
     setTimeout(()=>{
       renderChat();
       // on envoie au LLM seulement si final
       if(finalText){
+          //if ( finalText.startsWith("--> Interruption:") ) return;
           submitUser(finalText);
       }
     }, 40);
@@ -128,10 +130,17 @@ recognition.onerror= ()=> recognitionRunning = false;
 //*********************************************************************
 
 // STOP GLOBAL barge-in  //////////    i n t e r r u p t AI
-function interruptAI(){
+function interruptAI(finalText, interimText){
 
     // 🔒 idempotence dure
     if(aiWasInterrupted) return;
+
+    const userSpoke = finalText || interimText;
+    if (!userSpoke) {
+        console.log("Interruption sans parole utilisateur → ignorée");
+        return;
+    }
+
 
     console.log("interruptAI:");
     //console.log("assistantVisible: " + assistantVisible);
@@ -317,30 +326,39 @@ function speakChunk(){
 
 ////// MÉMOIRE
 function addUser(text){
+    console.log("[USER]", text);
     chatBuffer.push({role:"user", content:text});
     renderChat();
 }
 
 ////// ENVOI UTILISATEUR
-function submitUser(text){
+function submitUser(text) {
+    if (aiBusy) return;
+    aiBusy = true;
+
+    text = text.trim().replace(/\s+/g, " ");
+
+    if ( text.startsWith("--> Interruption:") ) return;
+
+    // Ne préfixer que si interruption confirmée par parole utilisateur
+    if (aiWasInterrupted) text = "--> Interruption: " + text;
+    else text = "--> " + text;
+
+
+    addUser(text);
+    sendToAI_php(chatBuffer);
+}
+/*function submitUser(text){
     if(aiBusy) return;
     aiBusy = true;
 
     text = text.trim().replace(/\s+/g," "); // bonus filtre écho
 
-    /*// echo
-    if ( text.startsWith("-->") ) return;
-    if ( chatBuffer.length &&
-        chatBuffer[chatBuffer.length -1].content == text ) {
-          console.log("------------>>> IGNORED: submitUser");
-          return;
-    }*/
-
-    if ( aiWasInterrupted ) text = "INTERRUPTION: --> " + text;
+    if ( aiWasInterrupted ) text = "--> Interruption: " + text;
     else text = "--> " + text;
     addUser(text);
     sendToAI_php(chatBuffer);
-}
+}*/
 
 ////// parle ce qu'il reste même sans ponctuation
 function flushTTS(){
@@ -600,6 +618,7 @@ function commitAssistant(text){
       }
     }
 
+    console.log("[ASSISTANT]", text);
     chatBuffer.push({
         role: "assistant",
         content: clean
@@ -657,7 +676,35 @@ function commonPrefixLength(a, b){
     return i;
 }
 
-function looksLikeEcho(userText){
+//////
+function looksLikeEcho(userText) {
+    const ref = assistantVisible || assistantPending;
+    if (!ref || !userText) return false;
+
+    //if ( userText.startsWith("--> Interruption:") ) return true;
+
+    // Normalisation plus agressive
+    const normalize = (t) => t.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[’'‘’]/g, "")
+        .replace(/[-–—]/g, "")
+        .replace(/[^\w\s]/g, "")
+        .trim();
+
+    const a = normalize(userText);
+    const b = normalize(ref);
+
+    // Si le texte utilisateur est un sous-ensemble du texte assistant
+    if (b.includes(a) && a.length > 4) return true;
+
+    // Similarité de mots (seuil plus strict)
+    const wordsA = a.split(/\s+/).filter(w => w.length > 2);
+    const wordsB = b.split(/\s+/).filter(w => w.length > 2);
+    const common = wordsA.filter(w => wordsB.includes(w));
+    return common.length / wordsA.length > 0.7; // Seuil plus élevé
+}
+
+/*function looksLikeEcho(userText){
 
     const ref = assistantVisible || assistantPending;
     if (!ref) return false;
@@ -694,7 +741,7 @@ function looksLikeEcho(userText){
     const score = echoScore(a, b);
 
     return score > 0.55;
-}
+}*/
 
 //////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////        STREAMING MISTRAL
