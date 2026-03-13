@@ -41,6 +41,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
+    echo json_encode(["error" => "Tentative de piratage !!!"]);
     exit;
 }
 
@@ -50,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $apiKey = $_SERVER['MISTRAL_API_KEY'] ?? null;
 if (!$apiKey) {
     http_response_code(500);
-    echo json_encode(["error" => "Server misconfigured"]);
+    echo json_encode(["error" => "MISTRAL_API_KEY missing"]);
     exit;
 }
 
@@ -63,13 +64,14 @@ if (
     $_SERVER['HTTP_ORIGIN'] !== $origin
 ) {
     http_response_code(403);
+    echo json_encode(["error" => "CSRF + Origin problem"]);
     exit;
 }
 
 /* ─────────────────────────────────────────────
    4. Rate limit (IP + session)
 ───────────────────────────────────────────── */
-/*$ip = $_SERVER['REMOTE_ADDR'];
+$ip = $_SERVER['REMOTE_ADDR'];
 $rateKey = md5($ip . session_id());
 $rateFile = sys_get_temp_dir()."/rate_$rateKey";
 
@@ -86,7 +88,7 @@ if ($rate["c"] > 30) {
     http_response_code(429);
     echo json_encode(["error" => "Rate limit exceeded"]);
     exit;
-}*/
+}
 
 /* ─────────────────────────────────────────────
    5. Input size
@@ -96,6 +98,7 @@ if ($rate["c"] > 30) {
 $raw = $_POST['chatBuffer'] ?? '';
 if ( strlen($raw) > 65536 ) { // || strlen($sysMes) > 65536 ) {
     http_response_code(413);
+    echo json_encode(["error" => "Size limit exceeded"]);
     exit;
 }
 
@@ -147,7 +150,7 @@ $messages = array_values(array_filter($messages, function ($m) {
 
 $sysMes = sysMessages();
 
-// inject system messages
+// inject system messages au début
 array_unshift($messages, [
     "role" => "system",
     "content" => $sysMes

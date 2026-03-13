@@ -1,7 +1,7 @@
 // index.js
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.13.1";
+var zivaVersion = "v6.03.12.1";
 
 let chatBuffer = [];
 
@@ -328,6 +328,14 @@ function submitUser(text){
 
     text = text.trim().replace(/\s+/g," "); // bonus filtre écho
 
+    /*// echo
+    if ( text.startsWith("-->") ) return;
+    if ( chatBuffer.length &&
+        chatBuffer[chatBuffer.length -1].content == text ) {
+          console.log("------------>>> IGNORED: submitUser");
+          return;
+    }*/
+
     if ( aiWasInterrupted ) text = "INTERRUPTION: --> " + text;
     else text = "--> " + text;
     addUser(text);
@@ -607,8 +615,9 @@ function commitAssistant(text){
     if(!clean) return;
 
     if(assistantFrozen && aiWasInterrupted === true) {
+      //chatBuffer = chatBuffer.slice(0, -1); // sup der elem
       if(chatBuffer.length && chatBuffer.at(-1).role === "assistant"){
-          chatBuffer.pop(); // sup der elem
+          chatBuffer.pop();
       }
     }
 
@@ -850,43 +859,54 @@ function startSilenceWatcher(){
     }, 1000);
 }
 
-
-
 // ******************************************************************
 // *********************************************   $ready$  R E A D Y
 $(document).ready(function () {
 
-  ///////  micro
-  $("#micBtn").on("click", () => {
-    unlockIOSAudio();
+///////  micro
+$("#micBtn").on("click", () => {
+  unlockIOSAudio();
 
-    micEnabled = !micEnabled;
+  micEnabled = !micEnabled;
 
-    if(micEnabled){
-        recognition.start();
-        lastSpeechTime = Date.now();
-        startSilenceWatcher();
-    }else{
-        recognition.stop();
-    }
+  if(micEnabled){
+      recognition.start();
+      lastSpeechTime = Date.now();
+      startSilenceWatcher();
+  }else{
+      recognition.stop();
+  }
 
-    $("#micBtn").toggleClass("btn-danger",micEnabled);
-  });
+  $("#micBtn").toggleClass("btn-danger",micEnabled);
+});
 
-  /////// haut-parleur
-  $("#spkBtn").on("click", () => {
-    unlockIOSAudio();  //  déverrouille iOS
-    speakerEnabled=!speakerEnabled;
-    $("#spkBtn").toggleClass("btn-warning",speakerEnabled);
+/////// haut-parleur
+$("#spkBtn").on("click", () => {
+  unlockIOSAudio();  //  déverrouille iOS
+  speakerEnabled=!speakerEnabled;
+  $("#spkBtn").toggleClass("btn-warning",speakerEnabled);
 
-  });
-
-//---------------------
-  setTimeout(function() {
-    getLocation();
-    //$("#showTravellerButton").trigger("click");  // show traveller display on startup
-}, 1000);
-
+});
 
 }); // *********************************************  F I N   R E A D Y
 //  *******************************************************************
+
+//////
+function getBestFemaleVoice() {  // not used
+
+  const voices = speechSynthesis.getVoices();
+
+  const preferred = [
+    "Google français",
+    //"Samantha",
+    "Microsoft Hortense",
+    "Amelie"
+  ];
+
+  for (let name of preferred) {
+    const v = voices.find(v => v.name.includes(name));
+    if (v) return v;
+  }
+
+  return voices.find(v => v.lang.startsWith("fr"));
+}

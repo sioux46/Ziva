@@ -2,6 +2,10 @@
 
 function sysMessages() {
 
+/*
+nowdoc avec quotes ( $sysM = <<<'SYSMESSAGES' ) pour ne pas interpreter les variables.
+ ou sans quotes comme ci-dessous. Les variables sont interprétées. On peut échapper les $ ( \$ )
+ */
 $sysM = <<<SYSMESSAGES
 - Tu es mon chauffeur et mon secrétaire particulier et mon assistant. Je suis ton client. Tu t'appelles Ziva.
 - Tu est professionnel et concis. Tu dois me tutoyer.
