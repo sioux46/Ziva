@@ -1,7 +1,10 @@
 // index.js
+/* jshint esversion: 10 */
+/* jshint -W069 */ // Désactive les avertissements pour les propriétés en notation pointée
+
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.13.1";
+var zivaVersion = "v6.03.18.1";
 
 let chatBuffer = [];
 
@@ -39,9 +42,11 @@ let speakerEnabled = true;
 // iOS
 let iosAudioUnlocked = false;
 
-const synth = window.speechSynthesis;
+//const synth = window.speechSynthesis;
 
-//                                              R E C O G N I T I O N
+//                                         R E C O G N I T I O N
+
+let recognitionRunning = false;
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
@@ -62,7 +67,7 @@ recognition.onend = ()=>{
     recognitionRunning = false;
     lastTTSEnd = Date.now();
     if(micEnabled){
-        try{ recognition.start(); }catch(e){}
+        try{ recognition.start(); } catch(e){}
     }
 };
 
@@ -777,6 +782,7 @@ function sendToAI_php(chatBuffer){
 
     xhr.open("POST","chatLLM.php",true);
     xhr.withCredentials = true;
+
 
     let form = new FormData();
     form.append("chatBuffer", JSON.stringify(structuredClone(chatBuffer)));
