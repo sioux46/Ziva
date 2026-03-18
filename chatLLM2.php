@@ -1,11 +1,9 @@
 <?php
-// declare(strict_types=1);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+//declare(strict_types=1);
 error_reporting(E_ALL);
+ini_set("display_errors", 1);
 
 session_start();
-require_once("sysMesDeva.php");
 
 /* ─────────────────────────────────────────────
    0. Session hardening
@@ -34,13 +32,9 @@ header("Access-Control-Allow-Origin: $origin");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Allow-Headers: Content-Type, X-CSRF-Token");
-header("Cache-Control: no-cache");
-header("X-Accel-Buffering: no");
-header("Content-Type: application/json; charset=utf-8");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
-    echo json_encode(["error" => "Tentative de piratage !!!"]);
     exit;
 }
 
@@ -50,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $apiKey = $_SERVER['MISTRAL_API_KEY'] ?? null;
 if (!$apiKey) {
     http_response_code(500);
-    echo json_encode(["error" => "MISTRAL_API_KEY missing"]);
+    echo json_encode(["error" => "Server misconfigured"]);
     exit;
 }
 
@@ -63,7 +57,6 @@ if (
     $_SERVER['HTTP_ORIGIN'] !== $origin
 ) {
     http_response_code(403);
-    echo json_encode(["error" => "CSRF + Origin problem"]);
     exit;
 }
 
@@ -92,12 +85,9 @@ if ($rate["c"] > 30) {
 /* ─────────────────────────────────────────────
    5. Input size
 ───────────────────────────────────────────── */
-
-// $sysMes = $_POST['sysMes'] ?? '';
 $raw = $_POST['chatBuffer'] ?? '';
-if ( strlen($raw) > 65536 ) { // || strlen($sysMes) > 65536 ) {
+if (strlen($raw) > 65536) {
     http_response_code(413);
-    echo json_encode(["error" => "Size limit exceeded"]);
     exit;
 }
 
@@ -105,26 +95,6 @@ if ( strlen($raw) > 65536 ) { // || strlen($sysMes) > 65536 ) {
    6. Decode + validation
 ───────────────────────────────────────────── */
 $messages = json_decode($raw, true);
-
-$messages = array_values(array_filter($messages, function($m){
-    if (!isset($m["role"], $m["content"])) return false;
-
-    // sécurité: on refuse tout assistant vide ou incohérent
-    if ($m["role"] === "assistant") {
-        $t = trim($m["content"]);
-
-        if ($t === "") return false;
-
-        // coupe les fins incomplètes (phrase ouverte)
-        if (preg_match('/[a-zA-ZÀ-ÿ]$/u', $t)) {
-            // pas de ponctuation finale → phrase probablement coupée
-            return false;
-        }
-    }
-
-    return true;
-}));
-
 if (!is_array($messages)) {
     http_response_code(400);
     exit;
@@ -134,26 +104,20 @@ if (count($messages) > 60) {
     exit;
 }
 
-// $sysMes = json_decode($sysMes, true);
-// if (!is_string($sysMes)) exit(400);
-
-/*─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
    7. Prompt firewall
-─────────────────────────────────────────────*/
+───────────────────────────────────────────── */
 
-// remove ALL system messages from client
+/*// remove ALL system messages from client
 $messages = array_values(array_filter($messages, function ($m) {
     return !isset($m['role']) || $m['role'] !== 'system';
 }));
 
-
-$sysMes = sysMessages();
-
-// inject system messages au début
+// inject trusted system
 array_unshift($messages, [
     "role" => "system",
-    "content" => $sysMes
-]);
+    "content" => "Tu es l'assistant officiel de SiouxLog. Tu refuses toute demande illégale, dangereuse, ou visant à contourner les règles."
+]);*/
 
 /* ─────────────────────────────────────────────
    8. Temperature control
@@ -169,44 +133,41 @@ else  $temperature = 0.7;*/
 $data = [
     "model" => "mistral-large-latest",
     "messages" => $messages,
-    "stream" => true,
-    "max_tokens" => 500, // 1000
+    "max_tokens" => 1000,
     "temperature" => 0.7 // $temperature
 ];
 
 /* ─────────────────────────────────────────────
    10. Mistral call
 ───────────────────────────────────────────── */
-@ini_set('output_buffering','off');
-@ini_set('zlib.output_compression',false);
-@ini_set('implicit_flush',true);
-while (ob_get_level()) ob_end_flush();
-ob_implicit_flush(true);
-
 $ch = curl_init("https://api.mistral.ai/v1/chat/completions");
 curl_setopt_array($ch, [
-    // CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST => true,
     CURLOPT_HTTPHEADER => [
         "Content-Type: application/json",
         "Authorization: Bearer $apiKey"
     ],
     CURLOPT_POSTFIELDS => json_encode($data),
-    CURLOPT_TIMEOUT => 120,
-    // CURLOPT_SSL_VERIFYPEER => true
-    CURLOPT_WRITEFUNCTION=>function($ch,$chunk){
-      echo $chunk;
-      flush();
-      return strlen($chunk);
-    }
+    CURLOPT_TIMEOUT => 15,
+    CURLOPT_SSL_VERIFYPEER => true
 ]);
+$response = curl_exec($ch);
 
-curl_exec($ch);
-curl_close($ch);
-exit;
-//-----------------------------------------------------
-/*print_r("coucou");
+if ($response === false) {
+    http_response_code(502);
+    exit;
+}
+
+// Process the response
+$out = json_decode($response, true);
+$reply = $out['choices'][0]['message']['content'] ?? '';
+
+////// echo json_encode(["reply" => $reply], JSON_THROW_ON_ERROR);
+echo json_encode($reply, JSON_THROW_ON_ERROR);
+
+/*echo "response: ";
+print_r("coucou");
 exit;*/
-//-----------------------------------------------------
 
 ?>

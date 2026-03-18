@@ -51,7 +51,10 @@ recognition.interimResults = true;
 
 //------------------------------
 // suivre l’état réel du micro
-recognition.onstart = ()=> recognitionRunning = true;
+recognition.onstart = ()=> {
+  if (!micEnabled) return;
+  recognitionRunning = true;
+};
 
 //------------------------------
 // Chrome coupe parfois le micro en mode continu.
@@ -68,6 +71,12 @@ recognition.onresult = e => {
 
   let finalText = "";
   let interimText = "";
+
+  if (!micEnabled) {
+    let ttsQueue = [];
+    let lastTTSEnd = 0;
+    return;
+  }
 
   for (let i = e.resultIndex; i < e.results.length; i++) {
       const transcript = e.results[i][0].transcript;
@@ -101,7 +110,7 @@ recognition.onresult = e => {
   //if ( bargeText.startsWith("-->") ) return;
 
   // barge-in ultra rapide
-  if((aiSpeaking || aiStreaming) && bargeText){
+  if((aiSpeaking || aiStreaming) && bargeText && micEnabled){
 
     interruptAI();
 
@@ -321,7 +330,7 @@ function addUser(text){
     renderChat();
 }
 
-////// ENVOI UTILISATEUR
+/*////// ENVOI UTILISATEUR
 function submitUser(text){
     if(aiBusy) return;
     aiBusy = true;
@@ -332,7 +341,39 @@ function submitUser(text){
     else text = "--> " + text;
     addUser(text);
     sendToAI_php(chatBuffer);
+}*/
+
+//////
+async function submitUser(text) {
+    if (aiBusy) return;
+    aiBusy = true;
+    micEnabled = false;
+
+    text = text.trim().replace(/\s+/g, " ");
+
+    try {
+        const classification = await classifyUserQuestion(text);
+        if (classification.is_weather === "oui") {
+            // Question météo : récupérer les données et répondre
+            fetchWeatherFromMistral(classification.location, text);
+        } else {
+            // Question normale : envoyer à Mistral
+            if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+            else text = "--> " + text;
+            addUser(text);
+            micEnabled = true;
+            sendToAI_php(chatBuffer);
+        }
+    } catch (e) {
+        console.error("Erreur de classification, traitement normal :", e);
+        if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+        else text = "--> " + text;
+        addUser(text);
+        micEnabled = true;
+        sendToAI_php(chatBuffer);
+    }
 }
+
 
 ////// parle ce qu'il reste même sans ponctuation
 function flushTTS(){

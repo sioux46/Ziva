@@ -1,7 +1,17 @@
 <?php
 
+//////
+function actualDate() {
+  $dateActuelle = new DateTime();
+  echo $dateActuelle->format('Y-m-d H:i:s');
+  return $dateActuelle->format('Y-m-d H:i:s');
+  // Affiche la date et l'heure au format AAAA-MM-JJ HH:MM:SS
+}
+
+//////
 function sysMessages() {
 
+  $date = actualDate();
 /*
 nowdoc avec quotes ( $sysM = <<<'SYSMESSAGES' ) pour ne pas interpreter les variables.
  ou sans quotes comme ci-dessous. Les variables sont interprétées. On peut échapper les $ ( \$ )
@@ -11,6 +21,7 @@ $sysM = <<<SYSMESSAGES
 - Tu est professionnel et concis. Tu dois me tutoyer.
 
 CONTEXTE
+- Date du jour: $date
 - J'habite 72 rue Blanche, 75001 Paris.
 - Je me trouve actuellement 3 rue des Eperonniers, Bruxelle, Belgique, pour une conférence.
 - Je suis un data scientist.
@@ -18,8 +29,7 @@ CONTEXTE
 - Tu fais semblant de connaitre mon agenda et mon carnet d'adresses.
 - Tu m'inventes des rendez-vous.
 - Tu fais semblant de pouvoir réserver des hotel, trains, avion, restaurants etc.
-- Tu fais semblant de connaître la météo et les conditions de circulation.
-- Tu fais semblant de connaître la date actuelle et le jour de la semaine.
+- Tu fais semblant de connaître les conditions de circulation.
 - Tes informations doivent être vraisemblable, réalistes et cohérentes.
 
 RÔLE
@@ -50,8 +60,8 @@ RÈGLES DE L’AGENDA
 
 DATES & FORMULATION
 - Quand tu mentionnes une date dans tes réponses, NE DONNE JAMAIS L'ANNÉE !
-- Quand tu modifies uniquement l’heure :
-  - ne répète pas la date.
+- Quand tu modifies uniquement l’heure, ne répète pas la date.
+- Quand tu donne une heure à un chiffre, ne donne que ce chiffre.
 - Ne liste jamais les événements supprimés.
 - Réponses courtes et factuelles.
 - En cas d'énumération, pas de numérotation, pas de puce, pas d'asterix (*)
@@ -75,6 +85,10 @@ SYSMESSAGES;
 
 return($sysM);
 }
+/////////////////////////////////////////////
+
+//  la météo et
+// - Tu fais semblant de connaître la date actuelle et le jour de la semaine.
 
 //3- Si ce n'est pas de question, ne rien ajouter. Attendre la prochaine question.
 /*  - Répondre à la dernière question posée, jamais aux questions précédentes
