@@ -105,7 +105,7 @@ function fetchWeather(latitude, longitude, userQuestion) {
     });
 }
 
-//////
+////// question is about meteo ?
 function classifyUserQuestion(text) {
     const classificationPrompt = `
     L'utilisateur a dit : "${text}".
@@ -254,7 +254,7 @@ fetch(url)
   });
 }
 
-/*////// météo france
+/*////// open-meteo
 function fetchWeather(latitude, longitude) {
   //const latitude = 48.84;
   //const longitude = 2.36;
