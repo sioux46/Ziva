@@ -2,55 +2,35 @@
 //
 ///////////////////////////  Mistral //////////////////
 
-//////
-function fetchWeatherFromMistral(location, userQuestion) {
-    // 1. Envoyer la question à Mistral pour obtenir les coordonnées ou la confirmation
-    const weatherPrompt = `L'utilisateur demande la météo pour ${location}. Donne-moi les coordonnées GPS (latitude, longitude) pour cette localisation, ou utilise Paris par défaut. Réponds uniquement avec un objet JSON comme ceci : {"latitude":XX.XX, "longitude":YY.YY}.`;
-    const weatherChatBuffer = structuredClone(chatBuffer);
-    weatherChatBuffer.push({ role: "user", content: weatherPrompt });
+//////  récupérer coors et appeler fetchWeather qui répond
+function fetchCoordinates(location, userQuestion) {
 
-    // Appel à Mistral pour obtenir les coordonnées
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=fr&format=json`;
+
     $.ajax({
-        url: "chatLLM2.php",
-        method: "POST",
-        data: {
-            chatBuffer: JSON.stringify(weatherChatBuffer),
-            csrf: document.querySelector('meta[name="csrf-token"]').content
-        },
-        success: function(response) {
-            try {
-                // 1. Décoder la réponse (si elle est une chaîne JSON échappée)
-                let decodedResponse;
-                try {
-                    decodedResponse = typeof response === "string" ? JSON.parse(response) : response;
-                } catch (e) {
-                    // Si ce n'est pas un JSON valide, utiliser la réponse brute
-                    decodedResponse = response;
-                }
+        url: url,
+        method: "GET",
+        dataType: "json",
+        success: function(data) {
+            if (data.results && data.results.length > 0) {
 
-                // 2. Extraire le contenu JSON depuis le format Markdown
+                const latitude = data.results[0].latitude;
+                const longitude = data.results[0].longitude;
 
-                const jsonMatch = decodedResponse.match(/```json\n([\s\S]*?)\n```/);
-                if (!jsonMatch || jsonMatch.length < 2) {
-                    throw new Error("Format de réponse inattendu (bloc JSON non trouvé)");
-                }
-                const jsonStr = jsonMatch[1].trim();
-
-                // 3. Parser le JSON extrait
-                const coors = JSON.parse(jsonStr);
-                fetchWeather(coors.latitude, coors.longitude, userQuestion);
-
-            } catch (e) {
-                console.error("Erreur lors du parsing des coordonnées :", e);
-                fetchWeather(48.84, 2.36, userQuestion); // Paris par défaut
+                fetchWeather(latitude, longitude, userQuestion);
+            }
+            else {
+                console.warn("Ville non trouvée, utilisation de Paris");
+                fetchWeather(48.85, 2.35, userQuestion);
             }
         },
-        error: function(xhr, status, error) {
-            console.error("Erreur lors de la récupération des coordonnées :", error);
-            fetchWeather(48.84, 2.36, userQuestion); // Paris par défaut
+        error: function() {
+            console.warn("Erreur géocoding (Paris par défaut)" );
+            fetchWeather(48.85, 2.35, userQuestion);
         }
     });
 }
+
 
 //////
 function fetchWeather(latitude, longitude, userQuestion) {
@@ -77,28 +57,31 @@ function fetchWeather(latitude, longitude, userQuestion) {
                 success: function(response) {
                     try {
                         const mistralResponse = JSON.parse(response).replace(/\*+/g, '"');
-                        //const weatherResponse = mistralResponse.choices[0].message.content;
 
-                        addUser(userQuestion);
+                        let text = userQuestion;
+                        if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+                        else text = "--> " + text;
+
+                        addUser(text);
                         chatBuffer.push({ role: "assistant", content: mistralResponse });
                         renderChat();
                         aiBusy = false;
                         micEnabled = true;
                     } catch (e) {
-                        console.error("Erreur lors du parsing de la réponse météo :", e);
+                        console.warn("Erreur lors du parsing de la réponse météo :", e);
                         aiBusy = false;
                         micEnabled = true;
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error("Erreur lors de la récupération de la réponse météo :", error);
+                    console.warn("Erreur lors de la récupération de la réponse météo :", error);
                     aiBusy = false;
                     micEnabled = true;
                 }
             });
         },
         error: function(xhr, status, error) {
-            console.error("Erreur lors de la récupération des données météo :", error);
+            console.warn("Erreur lors de la récupération des données météo :", error);
             aiBusy = false;
             micEnabled = true;
         }
@@ -151,12 +134,12 @@ function classifyUserQuestion(text) {
                   const classification = JSON.parse(jsonStr);
                   resolve(classification);
               } catch (e) {
-                  console.error("Erreur de parsing :", e, response);
+                  console.warn("Erreur de parsing :", e, response);
                   reject(e);
               }
             },
             error: function(xhr, status, error) {
-                console.error("Erreur AJAX :", error);
+                console.warn("Erreur AJAX :", error);
                 reject(error);
             }
         });
@@ -199,10 +182,58 @@ function getWeatherDescription(code) {
     return descriptions[code] || "Condition inconnue";
 }
 
+/*//////
+function fetchWeatherFromMistral(location, userQuestion) {
+    // 1. Envoyer la question à Mistral pour obtenir les coordonnées ou la confirmation
+    const weatherPrompt = `L'utilisateur demande la météo pour ${location}. Donne-moi les coordonnées GPS (latitude, longitude) pour cette localisation, ou utilise Paris par défaut. Réponds uniquement avec un objet JSON comme ceci : {"latitude":XX.XX, "longitude":YY.YY}.`;
+    const weatherChatBuffer = structuredClone(chatBuffer);
+    weatherChatBuffer.push({ role: "user", content: weatherPrompt });
 
+    // Appel à Mistral pour obtenir les coordonnées
+    $.ajax({
+        url: "chatLLM2.php",
+        method: "POST",
+        data: {
+            chatBuffer: JSON.stringify(weatherChatBuffer),
+            csrf: document.querySelector('meta[name="csrf-token"]').content
+        },
+        success: function(response) {
+            try {
+                // 1. Décoder la réponse (si elle est une chaîne JSON échappée)
+                let decodedResponse;
+                try {
+                    decodedResponse = typeof response === "string" ? JSON.parse(response) : response;
+                } catch (e) {
+                    // Si ce n'est pas un JSON valide, utiliser la réponse brute
+                    decodedResponse = response;
+                }
 
+                // 2. Extraire le contenu JSON depuis le format Markdown
 
-//*********************** METEO seb ******************************
+                const jsonMatch = decodedResponse.match(/```json\n([\s\S]*?)\n```/);
+                if (!jsonMatch || jsonMatch.length < 2) {
+                    throw new Error("Format de réponse inattendu (bloc JSON non trouvé)");
+                }
+                const jsonStr = jsonMatch[1].trim();
+
+                // 3. Parser le JSON extrait
+                const coors = JSON.parse(jsonStr);
+                fetchWeather(coors.latitude, coors.longitude, userQuestion);
+
+            } catch (e) {
+                console.warn("Erreur lors du parsing des coordonnées :", e);
+                fetchWeather(48.84, 2.36, userQuestion); // Paris par défaut
+            }
+        },
+        error: function(xhr, status, error) {
+            console.warn("Erreur lors de la récupération des coordonnées :", error);
+            fetchWeather(48.84, 2.36, userQuestion); // Paris par défaut
+        }
+    });
+}*/
+
+//****************************************************************
+//*********************** Localisation actuelle (seb) ************
 
 var watchID = 0;  // geoloc
 var geoCoor = {};
@@ -250,7 +281,7 @@ fetch(url)
     }*/
   })
   .catch(error => {
-    console.error('Echec de la retro-localisation', error);
+    console.warn('Echec de la retro-localisation', error);
   });
 }
 
@@ -268,7 +299,7 @@ function fetchWeather(latitude, longitude) {
           // envoyer data à mistral
       },
       error: function(xhr, status, error) {
-          console.error("Erreur lors de la récupération des données météo :", error);
+          console.warn("Erreur lors de la récupération des données météo :", error);
           $('#weather-data').html("Impossible de charger les données météo.");
       }
   });

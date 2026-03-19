@@ -77,11 +77,11 @@ recognition.onresult = e => {
   let finalText = "";
   let interimText = "";
 
-  if (!micEnabled) {
+  /*if (!micEnabled) {
     let ttsQueue = [];
     let lastTTSEnd = 0;
     return;
-  }
+  }*/
 
   for (let i = e.resultIndex; i < e.results.length; i++) {
       const transcript = e.results[i][0].transcript;
@@ -359,9 +359,10 @@ async function submitUser(text) {
     try {
         const classification = await classifyUserQuestion(text);
         if (classification.is_weather === "oui") {
-            // Question météo : récupérer les données et répondre
-            fetchWeatherFromMistral(classification.location, text);
-        } else {
+            // récupérer coors et appeler fetchWeather qui répond
+            fetchCoordinates(classification.location, text);
+        }
+        else {
             // Question normale : envoyer à Mistral
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
             else text = "--> " + text;
@@ -370,7 +371,7 @@ async function submitUser(text) {
             sendToAI_php(chatBuffer);
         }
     } catch (e) {
-        console.error("Erreur de classification, traitement normal :", e);
+        console.warn("Erreur de classification, traitement normal :", e);
         if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
         else text = "--> " + text;
         addUser(text);
@@ -400,17 +401,6 @@ function flushTTS(){
 }
 
 //////
-/*function renderChat(){
-    let out = "";
-
-    for(let m of chatBuffer){
-        out += m.content + "\n";
-    }
-    //out += ttsSpoken + "\n";
-    $("#chat").text(out);
-    console.log(out);
-}*/
-
 function renderChat() {
     let out = "";
     for (let m of chatBuffer) {
@@ -460,37 +450,6 @@ function supDoublons(out) {
   return out;
 }
 
-/*//////
-function findCutPoint(text){
-
-    // ponctuation forte
-    let strong = /([.!?\n])(?=\s+[A-ZÀ-Ÿ-])/g;
-    let m, last = -1;
-
-    while ((m = strong.exec(text)) !== null) {
-        last = m.index + 1;
-    }
-    if(last !== -1) return last;
-
-    //  saut de ligne = forte
-    let nl = text.lastIndexOf("\n");
-    if(nl > 40) return nl + 1;
-
-    //  ponctuation moyenne
-    let mid = text.lastIndexOf(";");
-    if(mid > 80) return mid + 1;
-
-    mid = text.lastIndexOf(":");
-    if(mid > 80) return mid + 1;
-
-    //  virgule (faible, prudente)
-    if(text.length > 160){
-        let c = text.lastIndexOf(",");
-        if(c > 80) return c + 1;
-    }
-
-    return -1;
-}*/
 
 //////
 function findCutPoint(text){
@@ -583,27 +542,6 @@ function formatTTS(text){
 
         .trim();
 }
-/*function formatTTS(text){ // prosodie ?
-
-    return text
-
-        // virgules → petite pause
-        .replace(/,/g, ", ")
-
-        // point-virgule → pause moyenne
-        .replace(/;/g, "; ")
-        .replace(/:/g, ": ")
-
-        // respiration naturelle
-        .replace(/\s-\s/g, "... ")
-
-        // sauts de ligne → pause
-        .replace(/\n+/g, ". ")
-
-        // espaces multiples
-        .replace(/\s{2,}/g, " ");
-}*/
-
 
 //////
 function cleanAssistantText(text){
@@ -866,7 +804,7 @@ function sendToAI_php(chatBuffer){
 
     xhr.send(form);
 }
-/////////////////////////////////////// F I N    M I S T R A L
+//////////////////////////////// F I N   M I S T R A L  XMLHttpRequest
 
 //////
 function unlockIOSAudio(){
