@@ -112,8 +112,6 @@ recognition.onresult = e => {
       return;
   }
 
-  //if ( bargeText.startsWith("-->") ) return;
-
   // barge-in ultra rapide
   if((aiSpeaking || aiStreaming) && bargeText && micEnabled){
 
@@ -404,8 +402,8 @@ async function submitUser(text) {   //    S U B M I T   U S E R
 Voici les données météo en JSON :
 ${JSON.stringify(weather)}.
 - Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${text}".
-- Ne dis pas "8,7°C" mais dis "8 virgule 7 degrés".
-- Ne dis pas "2,4 km/h" mais dis "2 virgule 4 kilomètres heure".
+- Ne dis pas "8,7°C" mais dis "8 degrés".
+- Ne dis pas "2,4 km/h" mais dis "2 kilomètres heure".
 `;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
