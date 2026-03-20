@@ -39,6 +39,92 @@ async function fetchWeatherData(latitude, longitude) {
     }
 }
 
+/*//////  récupérer coors et appeler fetchWeather qui répond
+function fetchCoordinates(location, userQuestion) {
+
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=fr&format=json`;
+
+    $.ajax({
+        url: url,
+        method: "GET",
+        dataType: "json",
+        success: function(data) {
+            if (data.results && data.results.length > 0) {
+
+                const latitude = data.results[0].latitude;
+                const longitude = data.results[0].longitude;
+
+                fetchWeather(latitude, longitude, userQuestion);
+            }
+            else {
+                console.warn("Ville non trouvée, utiliser position actuelle");
+                fetchWeather(geoCoor.latitude, geoCoor.longitude, userQuestion);
+            }
+        },
+        error: function() {
+            console.warn("Erreur géocoding, utiliser position actuelle" );
+            fetchWeather(geoCoor.latitude, geoCoor.longitude, userQuestion);
+        }
+    });
+}*/
+
+
+/*//////   NOT   USED !!!!!!
+function fetchWeather(latitude, longitude, userQuestion) {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=Europe/Paris`;
+
+    $.ajax({
+        url: url,
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            // Envoyer les données météo à Mistral pour traduction et réponse
+            const weatherData = JSON.stringify(data);
+            const weatherPrompt = `Voici les données météo en JSON : ${weatherData}. Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${userQuestion}". Donne un minimum de détails (une phrase courte)`;
+            const weatherChatBuffer = structuredClone(chatBuffer);
+            weatherChatBuffer.push({ role: "user", content: weatherPrompt });
+
+            $.ajax({
+                url: "chatLLM2.php",
+                method: "POST",
+                data: {
+                    chatBuffer: JSON.stringify(weatherChatBuffer),
+                    csrf: document.querySelector('meta[name="csrf-token"]').content
+                },
+                success: function(response) {
+                    try {
+                        const mistralResponse = JSON.parse(response).replace(/\*+/g, '"');
+
+                        let text = userQuestion;
+                        if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+                        else text = "--> " + text;
+
+                        addUser(text);
+                        chatBuffer.push({ role: "assistant", content: mistralResponse });
+                        renderChat();
+                        aiBusy = false;
+                        micEnabled = true;
+                    } catch (e) {
+                        console.warn("Erreur lors du parsing de la réponse météo :", e);
+                        aiBusy = false;
+                        micEnabled = true;
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.warn("Erreur lors de la récupération de la réponse météo :", error);
+                    aiBusy = false;
+                    micEnabled = true;
+                }
+            });
+        },
+        error: function(xhr, status, error) {
+            console.warn("Erreur lors de la récupération des données météo :", error);
+            aiBusy = false;
+            micEnabled = true;
+        }
+    });
+}*/
+
 ////// question is about meteo ?
 function classifyUserQuestion(text) {
     const classificationPrompt = `
@@ -133,94 +219,6 @@ function getWeatherDescription(code) {
     return descriptions[code] || "Condition inconnue";
 }
 
-
-
-/*//////  récupérer coors et appeler fetchWeather qui répond
-function fetchCoordinates(location, userQuestion) {
-
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=fr&format=json`;
-
-    $.ajax({
-        url: url,
-        method: "GET",
-        dataType: "json",
-        success: function(data) {
-            if (data.results && data.results.length > 0) {
-
-                const latitude = data.results[0].latitude;
-                const longitude = data.results[0].longitude;
-
-                fetchWeather(latitude, longitude, userQuestion);
-            }
-            else {
-                console.warn("Ville non trouvée, utiliser position actuelle");
-                fetchWeather(geoCoor.latitude, geoCoor.longitude, userQuestion);
-            }
-        },
-        error: function() {
-            console.warn("Erreur géocoding, utiliser position actuelle" );
-            fetchWeather(geoCoor.latitude, geoCoor.longitude, userQuestion);
-        }
-    });
-}*/
-
-
-/*//////   NOT   USED !!!!!!
-function fetchWeather(latitude, longitude, userQuestion) {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=Europe/Paris`;
-
-    $.ajax({
-        url: url,
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            // Envoyer les données météo à Mistral pour traduction et réponse
-            const weatherData = JSON.stringify(data);
-            const weatherPrompt = `Voici les données météo en JSON : ${weatherData}. Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${userQuestion}". Donne un minimum de détails (une phrase courte)`;
-            const weatherChatBuffer = structuredClone(chatBuffer);
-            weatherChatBuffer.push({ role: "user", content: weatherPrompt });
-
-            $.ajax({
-                url: "chatLLM2.php",
-                method: "POST",
-                data: {
-                    chatBuffer: JSON.stringify(weatherChatBuffer),
-                    csrf: document.querySelector('meta[name="csrf-token"]').content
-                },
-                success: function(response) {
-                    try {
-                        const mistralResponse = JSON.parse(response).replace(/\*+/g, '"');
-
-                        let text = userQuestion;
-                        if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
-                        else text = "--> " + text;
-
-                        addUser(text);
-                        chatBuffer.push({ role: "assistant", content: mistralResponse });
-                        renderChat();
-                        aiBusy = false;
-                        micEnabled = true;
-                    } catch (e) {
-                        console.warn("Erreur lors du parsing de la réponse météo :", e);
-                        aiBusy = false;
-                        micEnabled = true;
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.warn("Erreur lors de la récupération de la réponse météo :", error);
-                    aiBusy = false;
-                    micEnabled = true;
-                }
-            });
-        },
-        error: function(xhr, status, error) {
-            console.warn("Erreur lors de la récupération des données météo :", error);
-            aiBusy = false;
-            micEnabled = true;
-        }
-    });
-}*/
-
 /*//////
 function fetchWeatherFromMistral(location, userQuestion) {
     // 1. Envoyer la question à Mistral pour obtenir les coordonnées ou la confirmation
@@ -312,7 +310,7 @@ fetch(url)
   .then(data => {
     actualGeoLoc = data.features[0].properties.geocoding;
     // console.log(actualGeoLoc.label);
-
+    
     /*$("#geoLocText").text(actualGeoLoc.label + "\n[" + testGeoCount + "]");
     $("#geoLocText").text(displayGeoLocLabel());
     testGeoCount++;
