@@ -77,12 +77,6 @@ recognition.onresult = e => {
   let finalText = "";
   let interimText = "";
 
-  /*if (!micEnabled) {
-    let ttsQueue = [];
-    let lastTTSEnd = 0;
-    return;
-  }*/
-
   for (let i = e.resultIndex; i < e.results.length; i++) {
       const transcript = e.results[i][0].transcript;
 
