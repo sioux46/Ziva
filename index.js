@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.20.2";
+var zivaVersion = "v6.03.20.3";
 
 let chatBuffer = [];
 
