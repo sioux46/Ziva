@@ -69,7 +69,7 @@ function fetchCoordinates(location, userQuestion) {
 }*/
 
 
-//////   NOT   USED !!!!!!
+/*//////   NOT   USED !!!!!!
 function fetchWeather(latitude, longitude, userQuestion) {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=Europe/Paris`;
 
@@ -123,7 +123,7 @@ function fetchWeather(latitude, longitude, userQuestion) {
             micEnabled = true;
         }
     });
-}
+}*/
 
 ////// question is about meteo ?
 function classifyUserQuestion(text) {
@@ -309,7 +309,8 @@ fetch(url)
   })
   .then(data => {
     actualGeoLoc = data.features[0].properties.geocoding;
-    console.log(actualGeoLoc.label);
+    // console.log(actualGeoLoc.label);
+    
     /*$("#geoLocText").text(actualGeoLoc.label + "\n[" + testGeoCount + "]");
     $("#geoLocText").text(displayGeoLocLabel());
     testGeoCount++;
@@ -322,6 +323,32 @@ fetch(url)
   });
 }
 
+//*********************************************************************
+//************************  S N C F  **********************************
+
+/*// Exemple d'appel à l'API Navitia pour obtenir les horaires
+const SNCF_KEY = '';
+const BASE_URL = 'https://api.navitia.io/v1/coverage/sncf';
+
+async function getTrainSchedules(departure, arrival) {
+  const url = `${BASE_URL}/journeys?from=${departure}&to=${arrival}&datetime=now`;
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': SNCF_KEY
+    }
+  });
+  const data = await response.json();
+  return data.journeys;
+}
+
+// Exemple d'utilisation
+getTrainSchedules('Paris', 'Lyon')
+  .then(schedules => console.log(schedules))
+  .catch(error => console.error(error));*/
+
+
+
+//***********************************************************************
 /*////// open-meteo
 function fetchWeather(latitude, longitude) {
   //const latitude = 48.84;
@@ -344,7 +371,7 @@ function fetchWeather(latitude, longitude) {
 
 
 //***********************************************************************
-//////
+/*////// not user
 function getBestFemaleVoice() {  // not used
 
   const voices = speechSynthesis.getVoices();
@@ -362,9 +389,6 @@ function getBestFemaleVoice() {  // not used
   }
 
   return voices.find(v => v.lang.startsWith("fr"));
-}
-
-
-
+}*/
 
 //***********************************************************************

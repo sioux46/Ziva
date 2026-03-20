@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.20.1";
+var zivaVersion = "v6.03.20.2";
 
 let chatBuffer = [];
 
@@ -107,7 +107,7 @@ recognition.onresult = e => {
   const echoWindow = Date.now() - lastTTSEnd < 1500; // 400
 
   if ((aiSpeaking || echoWindow) && looksLikeEcho(finalText)) {
-      console.log("------------>>> IGNORED: echo detected");
+      console.warn("------------>>> IGNORED: echo detected");
       console.log("finalText:", finalText);
       return;
   }
@@ -123,13 +123,23 @@ recognition.onresult = e => {
       renderChat();
       // on envoie au LLM seulement si final
       if(finalText){
-          submitUser(finalText);
+        // 🔥 GARDE anti fuites
+        if(looksLikeEcho(finalText)){
+            console.warn("🚫 echo live bloqué (barge-in)");
+            return;
+        }
+        submitUser(finalText);
       }
     }, 40);
     return;
   }
 
   if(finalText){
+    // 🔥 GARDE anti fuites
+    if(looksLikeEcho(finalText)){
+        console.warn("🚫 echo live bloqué (barge-in)");
+        return;
+    }
       submitUser(finalText);
   }
 };
@@ -349,13 +359,27 @@ function submitUser(text){
 }*/
 
 //////
-async function submitUser(text) {
+function isInternalLeak(text){
+    return text.startsWith("INTERRUPTION: -->")
+        && looksLikeEcho(text.replace("INTERRUPTION: -->","").trim());
+}
+
+//////
+async function submitUser(text) {   //    S U B M I T   U S E R
 
     if (aiBusy) return;
     aiBusy = true;
     micEnabled = false;
 
     text = text.trim().replace(/\s+/g, " ");
+
+
+    // 🔥 PROTECTION FINALE ANTI-FUITE
+    if(isInternalLeak(text)){
+        console.console.warn();("🚫 Leak bloqué:", text);
+        aiBusy = false;
+        return;
+    }
 
     try {
 
@@ -379,7 +403,9 @@ async function submitUser(text) {
             const weatherPrompt = `
 Voici les données météo en JSON :
 ${JSON.stringify(weather)}.
-Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${text}".
+- Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${text}".
+- Ne dis pas "8,7°C" mais dis "8 virgule 7 degrés".
+- Ne dis pas "2,4 km/h" mais dis "2 virgule 4 kilomètres heure".
 `;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;

@@ -79,8 +79,9 @@ RECOMMANDATIONS GÉNÉRALES
 
 IMPORTANT !
   - Si l'utilisateur commence par dire "INTERRUPTION:" :
-      1- Si c'est suivi d'une question, répondre à la question posée.
-      2- Attendre la prochaine question.
+      NE PAS RÉPÉTER NI CONTINUER ta réponse précédente.
+      1 - Si c'est une question, répondre à la question posée.
+      2 - Attendre la prochaine question.
 SYSMESSAGES;
 ////////////////////////////////////////////////////
 
