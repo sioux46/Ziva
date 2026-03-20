@@ -93,7 +93,6 @@ if ($rate["c"] > 30) {
    5. Input size
 ───────────────────────────────────────────── */
 
-// $sysMes = $_POST['sysMes'] ?? '';
 $raw = $_POST['chatBuffer'] ?? '';
 if ( strlen($raw) > 65536 ) { // || strlen($sysMes) > 65536 ) {
     http_response_code(413);
@@ -134,20 +133,20 @@ if (count($messages) > 60) {
     exit;
 }
 
-// $sysMes = json_decode($sysMes, true);
-// if (!is_string($sysMes)) exit(400);
-
 /*─────────────────────────────────────────────
    7. Prompt firewall
 ─────────────────────────────────────────────*/
 
-// remove ALL system messages from client
+/*// remove ALL system messages from client
 $messages = array_values(array_filter($messages, function ($m) {
     return !isset($m['role']) || $m['role'] !== 'system';
-}));
+}));*/
+//        retourne les messages system à injecter
+$sysMes = sysMessages(
+    json_decode($_POST['localisation'],true),
+    json_decode($_POST['origine'],true)
+);
 
-
-$sysMes = sysMessages();
 
 // inject system messages au début
 array_unshift($messages, [
@@ -171,7 +170,7 @@ $data = [
     "messages" => $messages,
     "stream" => true,
     "max_tokens" => 500, // 1000
-    "temperature" => 0.7 // $temperature
+    "temperature" => 0.7, // $temperature
 ];
 
 /* ─────────────────────────────────────────────

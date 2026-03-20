@@ -1,8 +1,45 @@
-//
-//
+// util.js
+/* jshint esversion: 10 */
+/* jshint -W069 */ // Désactive les avertissements pour les propriétés en notation pointée
 ///////////////////////////  Mistral //////////////////
 
-//////  récupérer coors et appeler fetchWeather qui répond
+//////
+async function fetchCoordinatesData(location) {
+
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=fr&format=json`;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.results && data.results.length > 0) {
+            return {
+                lat: data.results[0].latitude,
+                lon: data.results[0].longitude
+            };
+        }
+    } catch(e){
+        console.warn("Erreur géocoding:", e);
+    }
+
+    return { lat: geoCoor.latitude, lon: geoCoor.longitude }; // position actuelle
+}
+
+//////
+async function fetchWeatherData(latitude, longitude) {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=Europe/Paris`;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        return data;
+    } catch(e){
+        console.warn("Erreur météo:", e);
+        return null;
+    }
+}
+
+/*//////  récupérer coors et appeler fetchWeather qui répond
 function fetchCoordinates(location, userQuestion) {
 
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=fr&format=json`;
@@ -20,19 +57,19 @@ function fetchCoordinates(location, userQuestion) {
                 fetchWeather(latitude, longitude, userQuestion);
             }
             else {
-                console.warn("Ville non trouvée, utilisation de Paris");
-                fetchWeather(48.85, 2.35, userQuestion);
+                console.warn("Ville non trouvée, utiliser position actuelle");
+                fetchWeather(geoCoor.latitude, geoCoor.longitude, userQuestion);
             }
         },
         error: function() {
-            console.warn("Erreur géocoding (Paris par défaut)" );
-            fetchWeather(48.85, 2.35, userQuestion);
+            console.warn("Erreur géocoding, utiliser position actuelle" );
+            fetchWeather(geoCoor.latitude, geoCoor.longitude, userQuestion);
         }
     });
-}
+}*/
 
 
-//////
+//////   NOT   USED !!!!!!
 function fetchWeather(latitude, longitude, userQuestion) {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=Europe/Paris`;
 
@@ -93,12 +130,12 @@ function classifyUserQuestion(text) {
     const classificationPrompt = `
     L'utilisateur a dit : "${text}".
     1. Détermine si cette question concerne la météo (réponds uniquement par "oui" ou "non").
-    2. Si oui, extrais la localisation (ville, région, pays) mentionnée, ou utilise "Paris" par défaut.
+    2. Si oui, extrais la localisation (ville, région, pays) mentionnée, sinon utilise ${actualGeoLoc.city} par défaut.
     3. Réponds avec un objet JSON strictement formaté comme ceci :
     {
       "is_weather": "oui" ou "non",
-      "location": "nom de la localisation ou 'Paris'",
-      "reason": "explication courte de la décision"
+      "location": "nom de la localisation ou par défaut ${actualGeoLoc.city}",
+      "reason": "explication très courte de la décision"
     }
   `;
     const classificationChatBuffer = structuredClone(chatBuffer);
@@ -236,7 +273,7 @@ function fetchWeatherFromMistral(location, userQuestion) {
 //*********************** Localisation actuelle (seb) ************
 
 var watchID = 0;  // geoloc
-var geoCoor = {};
+var geoCoor = {}; // coordonnés de l'apareil
 
 ////////////////////////////  GEOLOCALISATION   $geoloc
 

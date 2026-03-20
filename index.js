@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.18.1";
+var zivaVersion = "v6.03.20.1";
 
 let chatBuffer = [];
 
@@ -348,7 +348,7 @@ function submitUser(text){
     sendToAI_php(chatBuffer);
 }*/
 
-//////
+/*//////
 async function submitUser(text) {
     if (aiBusy) return;
     aiBusy = true;
@@ -377,6 +377,84 @@ async function submitUser(text) {
         addUser(text);
         micEnabled = true;
         sendToAI_php(chatBuffer);
+    }
+}*/
+
+//////
+async function submitUser(text) {
+
+    if (aiBusy) return;
+    aiBusy = true;
+    micEnabled = false;
+
+    text = text.trim().replace(/\s+/g, " ");
+
+    try {
+
+        const classification = await classifyUserQuestion(text);
+
+        // ===============================
+        // 🌦️ CAS MÉTÉO
+        // ===============================
+        if (classification.is_weather === "oui") {
+
+            const coords = await fetchCoordinatesData(classification.location);
+            const weatherData = await fetchWeatherData(coords.lat, coords.lon);
+
+            const wData = weatherData.current_weather;
+            const weather = { "temperature": wData.temperature,
+                              "winddirection": wData.winddirection,
+                              "windspeed": wData.windspeed,
+                              "weather": getWeatherDescription(wData.is_day)
+                            };
+
+            const weatherPrompt = `
+Voici les données météo en JSON :
+${JSON.stringify(weather)}.
+Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${text}".
+`;
+
+            if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+            else text = "--> " + text;
+
+            addUser(text);
+
+            // 🔥 injection dans le LLM principal
+            const newBuffer = structuredClone(chatBuffer);
+            newBuffer.push({
+                role: "system",
+                content: weatherPrompt
+            });
+
+            micEnabled = true;
+            sendToAI_php(newBuffer, "sysM");
+        }
+
+        // ===============================
+        // 💬 CAS NORMAL
+        // ===============================
+        else {
+
+            if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+            else text = "--> " + text;
+
+            addUser(text);
+            micEnabled = true;
+
+            sendToAI_php(chatBuffer, "userM");
+        }
+
+    } catch (e) {
+
+        console.warn("Erreur classification:", e);
+
+        if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+        else text = "--> " + text;
+
+        addUser(text);
+        micEnabled = true;
+
+        sendToAI_php(chatBuffer, "userM");
     }
 }
 
@@ -695,7 +773,7 @@ function looksLikeEcho(userText){
 //////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////        STREAMING MISTRAL
 //////////////////////////////////////////////////////////////////////
-function sendToAI_php(chatBuffer){
+function sendToAI_php(chatBuffer, origine){
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -725,6 +803,8 @@ function sendToAI_php(chatBuffer){
     let form = new FormData();
     form.append("chatBuffer", JSON.stringify(structuredClone(chatBuffer)));
     form.append("csrf", csrf);
+    form.append("localisation", JSON.stringify(actualGeoLoc.city));
+    form.append("origine", JSON.stringify(origine));
 
     xhr.onprogress = ()=>{ // toutes les 50ms
 

@@ -9,27 +9,27 @@ function actualDate() {
 }
 
 //////
-function sysMessages() {
+function sysMessages($ville, $origine) {
 
   $date = actualDate();
 /*
 nowdoc avec quotes ( $sysM = <<<'SYSMESSAGES' ) pour ne pas interpreter les variables.
  ou sans quotes comme ci-dessous. Les variables sont interprétées. On peut échapper les $ ( \$ )
  */
-$sysM = <<<SYSMESSAGES
+
+$userM = <<<SYSMESSAGES
 - Tu es mon chauffeur et mon secrétaire particulier et mon assistant. Je suis ton client. Tu t'appelles Ziva.
 - Tu est professionnel et concis. Tu dois me tutoyer.
 
 CONTEXTE
 - Date du jour: $date
-- J'habite 72 rue Blanche, 75001 Paris.
-- Je me trouve actuellement 3 rue des Eperonniers, Bruxelle, Belgique, pour une conférence.
+- J'habite rue des Eperonniers, Bruxelle, Belgique.
+- Je me trouve actuellement en France à $ville pour une conférence.
 - Je suis un data scientist.
 - J'ai 2 filles, Diane et Juliette.
 - Tu fais semblant de connaitre mon agenda et mon carnet d'adresses.
 - Tu m'inventes des rendez-vous.
 - Tu fais semblant de pouvoir réserver des hotel, trains, avion, restaurants etc.
-- Tu fais semblant de connaître les conditions de circulation.
 - Tes informations doivent être vraisemblable, réalistes et cohérentes.
 
 RÔLE
@@ -82,10 +82,24 @@ IMPORTANT !
       1- Si c'est suivi d'une question, répondre à la question posée.
       2- Attendre la prochaine question.
 SYSMESSAGES;
+////////////////////////////////////////////////////
 
-return($sysM);
+$sysM = <<<SYSMESSAGES
+- Tu es mon chauffeur et mon secrétaire particulier et mon assistant. Je suis ton client. Tu t'appelles Ziva.
+- Tu est professionnel et concis. Tu dois me tutoyer.
+SYSMESSAGES;
+
+if ( $origine == "sysM" )  return($sysM);
+else if ( $origine == "userM" ) return($userM); // if ( $origine == "userM" )
+else  {
+  http_response_code(999);
+  exit;
+}
+
 }
 /////////////////////////////////////////////
+
+// - Tu fais semblant de connaître les conditions de circulation.
 
 //  la météo et
 // - Tu fais semblant de connaître la date actuelle et le jour de la semaine.
