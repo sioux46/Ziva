@@ -348,6 +348,38 @@ function submitUser(text){
     sendToAI_php(chatBuffer);
 }*/
 
+/*//////
+async function submitUser(text) {
+    if (aiBusy) return;
+    aiBusy = true;
+    micEnabled = false;
+
+    text = text.trim().replace(/\s+/g, " ");
+
+    try {
+        const classification = await classifyUserQuestion(text);
+        if (classification.is_weather === "oui") {
+            // récupérer coors et appeler fetchWeather qui répond
+            fetchCoordinates(classification.location, text);
+        }
+        else {
+            // Question normale : envoyer à Mistral
+            if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+            else text = "--> " + text;
+            addUser(text);
+            micEnabled = true;
+            sendToAI_php(chatBuffer);
+        }
+    } catch (e) {
+        console.warn("Erreur de classification, traitement normal :", e);
+        if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
+        else text = "--> " + text;
+        addUser(text);
+        micEnabled = true;
+        sendToAI_php(chatBuffer);
+    }
+}*/
+
 //////
 async function submitUser(text) {
 
