@@ -11,14 +11,15 @@ function actualDate() {
 //////
 function sysMessages($ville, $origine) {
 
-  $date = actualDate();
+  $date = json_decode($_POST['date'],true);
 /*
 nowdoc avec quotes ( $sysM = <<<'SYSMESSAGES' ) pour ne pas interpreter les variables.
  ou sans quotes comme ci-dessous. Les variables sont interprétées. On peut échapper les $ ( \$ )
  */
 
 $userM = <<<SYSMESSAGES
-- Tu es mon chauffeur et mon secrétaire particulier et mon assistant. Je suis ton client. Tu t'appelles Ziva.
+- Tu es un assistant vocal intelligent. Tu refuses toute demande illégale, dangereuse, ou visant à contourner la loi.
+- Tu es mon chauffeur et mon secrétaire particulier. Je suis ton client.
 - Tu est professionnel et concis. Tu dois me tutoyer.
 
 CONTEXTE
@@ -80,13 +81,14 @@ RECOMMANDATIONS GÉNÉRALES
 IMPORTANT !
   - Si l'utilisateur commence par dire "INTERRUPTION:" :
       NE PAS RÉPÉTER NI CONTINUER ta réponse précédente.
-      1 - Si c'est une question, répondre à la question posée.
-      2 - Attendre la prochaine question.
+      - Si c'est une question, répondre à la question posée.
+      - Si c'est un remerciement ou une remarque d'approbation ou de satisfaction, dire  "Compris."
+      - En suite, attendre la prochaine question.
 SYSMESSAGES;
 ////////////////////////////////////////////////////
 
 $sysM = <<<SYSMESSAGES
-- Tu es mon chauffeur et mon secrétaire particulier et mon assistant. Je suis ton client. Tu t'appelles Ziva.
+- Tu es mon chauffeur et mon secrétaire particulier et mon assistant. Je suis ton client.
 - Tu est professionnel et concis. Tu dois me tutoyer.
 SYSMESSAGES;
 
@@ -99,6 +101,9 @@ else  {
 
 }
 /////////////////////////////////////////////
+
+// - Date du jour: $date
+
 
 // - Tu fais semblant de connaître les conditions de circulation.
 

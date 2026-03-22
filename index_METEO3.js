@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.22.1";
+var zivaVersion = "v6.03.20.3";
 
 let chatBuffer = [];
 
@@ -117,7 +117,7 @@ recognition.onresult = e => {
       if(finalText){
         // 🔥 GARDE anti fuites
         if(looksLikeEcho(finalText)){
-            console.warn("🚫 echo live bloqué (barge-in) finalText: ", finalText);
+            console.warn("🚫 echo live bloqué (barge-in)");
             return;
         }
         submitUser(finalText);
@@ -129,7 +129,7 @@ recognition.onresult = e => {
   if(finalText){
     // 🔥 GARDE anti fuites
     if(looksLikeEcho(finalText)){
-        console.warn("🚫 echo live bloqué finalText: ", finalText);
+        console.warn("🚫 echo live bloqué (barge-in)");
         return;
     }
       submitUser(finalText);
@@ -356,9 +356,8 @@ function isInternalLeak(text){
         && looksLikeEcho(text.replace("INTERRUPTION: -->","").trim());
 }
 
-/////////////////////////////////////////////////////////////////
-async function submitUser(text) {   //    S U B M I T   U S E R ***********
-/////////////////////////////////////////////////////////////////
+//////
+async function submitUser(text) {   //    S U B M I T   U S E R
 
     if (aiBusy) return;
     aiBusy = true;
@@ -382,48 +381,24 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         // 🌦️ CAS MÉTÉO
         // ===============================
         if (classification.is_weather === "oui") {
-            let wData = "";
-            let weather = "";
+
             const coords = await fetchCoordinatesData(classification.location);
+            const weatherData = await fetchWeatherData(coords.lat, coords.lon);
 
-            let url = "";
-            if ( classification.is_today === "oui") {
-              url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current_weather=true&timezone=Europe/Paris`;
-            }
-            else {
-              url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&forecast_days=7`
-            }
+            const wData = weatherData.current_weather;
+            const weather = { "temperature": wData.temperature,
+                              "winddirection": wData.winddirection,
+                              "windspeed": wData.windspeed,
+                              "weather": getWeatherDescription(wData.is_day)
+                            };
 
-            const weatherData = await fetchWeatherData(url);
-
-            if ( classification.is_today === "oui") {
-              wData = weatherData.current_weather;
-              weather = {
-                        "weather": getWeatherDescription(wData.is_day),
-                        "temperature": wData.temperature,
-                        "winddirection": wData.winddirection,
-                        "windspeed": wData.windspeed,
-              };
-            }
-            else {
-              wData = weatherData.daily;
-              weather = {
-                        "temperature_2m_max": wData.temperature_2m_max,
-                        "temperature_2m_min": wData.temperature_2m_min,
-                        "precipitation_sum": wData.precipitation_sum,
-                        "time": wData.time
-              }
-            }
-
-            // Date du jour: ${Date()}.
             const weatherPrompt = `
-              Date du jour: ${Date()}.
-              Voici les données météo en JSON :
-              ${JSON.stringify(weather)}.
-              - Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${text}".
-              - Ne dis pas "8,7°C" mais dis "8 degrés".
-              - Ne dis pas "2,4 km/h" mais dis "2 kilomètres heure".
-            `;
+Voici les données météo en JSON :
+${JSON.stringify(weather)}.
+- Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${text}".
+- Ne dis pas "8,7°C" mais dis "8 degrés".
+- Ne dis pas "2,4 km/h" mais dis "2 kilomètres heure".
+`;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
             else text = "--> " + text;
@@ -816,7 +791,6 @@ function sendToAI_php(chatBuffer, origine){
     form.append("csrf", csrf);
     form.append("localisation", JSON.stringify(actualGeoLoc.city));
     form.append("origine", JSON.stringify(origine));
-    form.append("date", JSON.stringify(Date()));
 
     xhr.onprogress = ()=>{ // toutes les 50ms
 
@@ -840,7 +814,7 @@ function sendToAI_php(chatBuffer, origine){
             if(!tok) continue;
 
             // virer les asterix
-            tok = tok.replace(/\*+/g, '').replace(/"+/g, '');
+            tok = tok.replace(/\*+/g, '"');
 
             // NE PLUS ÉCRIRE SI GELÉ
             if(!assistantFrozen){
@@ -927,11 +901,6 @@ function startSilenceWatcher(){
     }, 1000);
 }
 
-//////
-function isAndroid() {
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-    return /android/i.test(userAgent);
-}
 
 
 // ******************************************************************

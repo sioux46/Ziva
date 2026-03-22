@@ -26,12 +26,12 @@ async function fetchCoordinatesData(location) {
 }
 
 //////
-async function fetchWeatherData(url) {
-    //const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=Europe/Paris`;
+async function fetchWeatherData(latitude, longitude) {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=Europe/Paris`;
 
     try {
-        const meteo = await fetch(url);
-        const data = await meteo.json();
+        const res = await fetch(url);
+        const data = await res.json();
         return data;
     } catch(e){
         console.warn("Erreur météo:", e);
@@ -43,17 +43,11 @@ async function fetchWeatherData(url) {
 function classifyUserQuestion(text) {
     const classificationPrompt = `
     L'utilisateur a dit : "${text}".
-    Voici la date: ${Date()}.
     1. Détermine si cette question concerne la météo (réponds uniquement par "oui" ou "non").
-    2. Si oui:
-        - extrais la localisation (ville, région, pays) mentionnée,
-        - détermine si la question porte sur aujourd'hui ou sur une date ultérieure,
-        si non:
-        - utilise ${actualGeoLoc.city} par défaut.
+    2. Si oui, extrais la localisation (ville, région, pays) mentionnée, sinon utilise ${actualGeoLoc.city} par défaut.
     3. Réponds avec un objet JSON strictement formaté comme ceci :
     {
       "is_weather": "oui" ou "non",
-      "is_today": "oui" ou "non",
       "location": "nom de la localisation ou par défaut ${actualGeoLoc.city}",
       "reason": "explication très courte de la décision"
     }
