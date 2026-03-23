@@ -7,6 +7,7 @@
 var zivaVersion = "v6.03.22.1";
 
 let chatBuffer = [];
+let maxChatBuffer = 15;
 
 // une minute de silence
 let lastSpeechTime = Date.now();
@@ -89,8 +90,9 @@ recognition.onresult = e => {
   }
 
   // 🔥 texte utilisé pour barge-in immédiat
-  const bargeText = finalText || interimText;
 
+  const bargeText = finalText || interimText;
+  //const bargeText = finalText; // 🔥 uniquement du final
   if(!bargeText) return;
 
   if(!aiSpeaking){ // début silence
@@ -331,8 +333,9 @@ function speakChunk(){
     playTTS();
 }
 
-////// MÉMOIRE
+////// push user dans  chatBuffer
 function addUser(text){
+    if ( chatBuffer.length > maxChatBuffer ) chatBuffer.shift();
     chatBuffer.push({role:"user", content:text});
     renderChat();
 }
@@ -347,7 +350,7 @@ function submitUser(text){
     if ( aiWasInterrupted ) text = "INTERRUPTION: --> " + text;
     else text = "--> " + text;
     addUser(text);
-    sendToAI_php(chatBuffer);
+    sendToAI_php(chatBuffer, "sysM");
 }*/
 
 //////
@@ -421,8 +424,9 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               Voici les données météo en JSON :
               ${JSON.stringify(weather)}.
               - Résume la météo actuelle en français pour l'utilisateur, en réponse à sa question : "${text}".
-              - Ne dis pas "8,7°C" mais dis "8 degrés".
-              - Ne dis pas "2,4 km/h" mais dis "2 kilomètres heure".
+              - Ne pas donner l'année pour les dates.
+              - Ne pas dire "8,7°C" mais dire "8 degrés".
+              - Ne pas dire "2,4 km/h" mais dire "2 kilomètres heure".
             `;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
@@ -451,7 +455,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
             addUser(text);
             micEnabled = true;
-
             sendToAI_php(chatBuffer, "userM");
         }
 
@@ -464,7 +467,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
         addUser(text);
         micEnabled = true;
-
         sendToAI_php(chatBuffer, "userM");
     }
 }
@@ -662,6 +664,7 @@ function cleanAssistantText(text){
     const clean = (text || "").trim();
     if(!clean) return;
 
+    if ( chatBuffer.length > maxChatBuffer ) chatBuffer.shift();
     chatBuffer.push({
         role: "assistant",
         content: clean
@@ -685,6 +688,7 @@ function commitAssistant(text){
       }
     }
 
+    if ( chatBuffer.length > maxChatBuffer ) chatBuffer.shift();
     chatBuffer.push({
         role: "assistant",
         content: clean
@@ -787,6 +791,14 @@ function looksLikeEcho(userText){
 function sendToAI_php(chatBuffer, origine){
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
+    let city;
+
+    try { city = actualGeoLoc.city }
+    catch(e) {
+      city = "Paris";
+      console.warn('Echec de la retro-localisation', e);
+      $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!");
+    }
 
     // évite les reliquats inter-requêtes.
     assistantPending = "";
@@ -814,7 +826,7 @@ function sendToAI_php(chatBuffer, origine){
     let form = new FormData();
     form.append("chatBuffer", JSON.stringify(structuredClone(chatBuffer)));
     form.append("csrf", csrf);
-    form.append("localisation", JSON.stringify(actualGeoLoc.city));
+    form.append("localisation", JSON.stringify(city));
     form.append("origine", JSON.stringify(origine));
     form.append("date", JSON.stringify(Date()));
 

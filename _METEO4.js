@@ -317,7 +317,6 @@ fetch(url)
   })
   .then(data => {
     actualGeoLoc = data.features[0].properties.geocoding;
-
     // console.log(actualGeoLoc.label);
 
     /*$("#geoLocText").text(actualGeoLoc.label + "\n[" + testGeoCount + "]");
@@ -329,7 +328,6 @@ fetch(url)
   })
   .catch(error => {
     console.warn('Echec de la retro-localisation', error);
-    $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!");
   });
 }
 
