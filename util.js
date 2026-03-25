@@ -23,6 +23,7 @@ async function fetchCoordinatesData(location) {
     }
 
     return { lat: geoCoor.latitude, lon: geoCoor.longitude }; // position actuelle
+    //return obtenirPosition(); // geoloc de l'apareil
 }
 
 //////
@@ -282,6 +283,7 @@ function fetchWeatherFromMistral(location, userQuestion) {
 
 var watchID = 0;  // geoloc
 var geoCoor = {}; // coordonnés de l'apareil
+var testGeoCount = 0;
 
 ////////////////////////////  GEOLOCALISATION   $geoloc
 
@@ -300,6 +302,8 @@ function showPosition(position) {
 
     //console.log("geoloc: " + testGeoCount );
     reverseLocation(position.coords.latitude, position.coords.longitude);
+    //const loc = obtenirPosition();
+    //reverseLocation(loc.lat, loc.lon);
     geoCoor.latitude = position.coords.latitude;
     geoCoor.longitude = position.coords.longitude;
 }
@@ -317,21 +321,37 @@ fetch(url)
   })
   .then(data => {
     actualGeoLoc = data.features[0].properties.geocoding;
-
-    // console.log(actualGeoLoc.label);
-
-    /*$("#geoLocText").text(actualGeoLoc.label + "\n[" + testGeoCount + "]");
-    $("#geoLocText").text(displayGeoLocLabel());
+    //console.log(actualGeoLoc.label + "\n[" + testGeoCount + "]");
     testGeoCount++;
-    if ( activePage == "#voyage" ) {
-      displayMap();
-    }*/
   })
   .catch(error => {
     console.warn('Echec de la retro-localisation', error);
     $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!");
   });
 }
+
+////// géoloc du navigateur
+function obtenirPosition() {
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        //alert(`Votre position : Latitude ${latitude}, Longitude ${longitude}`);
+        return {lat: latitude, lon: longitude};
+      },
+      (error) => {
+        alert(`Erreur : ${error.message}`);
+      }
+    );
+  } else {
+    alert("La géolocalisation n'est pas disponible.");
+  }
+}
+
+// Appeler la fonction au chargement de la page ou sur un événement utilisateur
+// obtenirPosition();
+
 
 //*********************************************************************
 //************************  S N C F  **********************************

@@ -131,7 +131,7 @@ else  $temperature = 0.7;*/
    9. API payload
 ───────────────────────────────────────────── */
 $data = [
-    "model" => "mistral-large-latest",
+    "model" => "mistral-small-latest", // large medium small
     "messages" => $messages,
     "max_tokens" => 500,
     "temperature" => 0.7 // $temperature

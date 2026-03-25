@@ -8,19 +8,29 @@ function actualDate() {
   // Affiche la date et l'heure au format AAAA-MM-JJ HH:MM:SS
 }
 
+////// Retourne une valeur aléatoire d'un tableau.
+function aleaCase($tableau) {
+    if (empty($tableau)) {
+        return $tableau[0];
+    }
+    return $tableau[array_rand($tableau)];
+}
+
+
 //////
 function sysMessages($ville, $origine) {
 
   $date = json_decode($_POST['date'],true);
+  $okRep = aleaCase(["D'accord", "Parfait", "Compris", "Très bien", "A votre service"]);
+
 /*
 nowdoc avec quotes ( $sysM = <<<'SYSMESSAGES' ) pour ne pas interpreter les variables.
  ou sans quotes comme ci-dessous. Les variables sont interprétées. On peut échapper les $ ( \$ )
  */
-
 $userM = <<<SYSMESSAGES
 - Tu es un assistant vocal intelligent. Tu refuses toute demande illégale, dangereuse, ou visant à contourner la loi.
 - Tu es mon chauffeur et mon secrétaire particulier. Je suis ton client.
-- Tu est professionnel et concis. Tu dois me tutoyer.
+- Tu est professionnel et concis.
 
 CONTEXTE
 - Date du jour: $date
@@ -79,17 +89,14 @@ RECOMMANDATIONS GÉNÉRALES
   - Jamais d'abréviation. ne dites pas "il est 16h30" mais "il est 16 heure 30."
 
 IMPORTANT !
-  - Si l'utilisateur commence par dire "INTERRUPTION:" :
-      NE PAS RÉPÉTER NI CONTINUER ta réponse précédente.
-      - Si c'est une question, répondre à la question posée.
-      - Si c'est un remerciement ou une remarque d'approbation ou de satisfaction, dire  "Compris."
-      - En suite, attendre la prochaine question.
+  - Si le message de l'utilisateur commence par "INTERRUPTION:-->" :
+      - Si l'utilisateur dit qu'il est satisfait ou qu'il remercie (exemples: "ok", "merci", "Entendu", "c'est bon"), répondre "$okRep". Ne rien ajouter.
 SYSMESSAGES;
 ////////////////////////////////////////////////////
 
 $sysM = <<<SYSMESSAGES
 - Tu es mon chauffeur et mon secrétaire particulier et mon assistant. Je suis ton client.
-- Tu est professionnel et concis. Tu dois me tutoyer.
+- Tu est professionnel et concis. 
 SYSMESSAGES;
 
 if ( $origine == "sysM" )  return($sysM);
@@ -102,6 +109,12 @@ else  {
 }
 /////////////////////////////////////////////
 
+//      - Si c'est une question ou une demande, répondre à la question ou à la demande.
+
+
+//      NE PAS RÉPÉTER NI CONTINUER ta réponse précédente.
+// puis attendre la prochaine question.
+// exemples: la question contient "ok" ou "merci" ou "Entendu" ou "c'est bon",
 // - Date du jour: $date
 
 

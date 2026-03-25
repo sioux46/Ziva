@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.22.1";
+var zivaVersion = "v6.03.25.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
@@ -92,7 +92,6 @@ recognition.onresult = e => {
   // 🔥 texte utilisé pour barge-in immédiat
 
   const bargeText = finalText || interimText;
-  //const bargeText = finalText; // 🔥 uniquement du final
   if(!bargeText) return;
 
   if(!aiSpeaking){ // début silence
@@ -109,7 +108,16 @@ recognition.onresult = e => {
   }
 
   // barge-in ultra rapide
-  if((aiSpeaking || aiStreaming) && bargeText && micEnabled){
+
+  if((aiSpeaking || aiStreaming) && micEnabled){
+
+    /*////---> DEBUT essai PC. a virer peut-être
+    // 🔥 ignore interim trop court (bruit)
+    if(!finalText && interimText.length < 6) return;
+
+    // 🔥 filtre echo sur bargeText (pas finalText)
+    if(looksLikeEcho(bargeText)) return;
+    ////---> FIN essai PC. a virer peut-être*/
 
     interruptAI();
 
@@ -950,6 +958,8 @@ function isAndroid() {
 // *********************************************   $ready$  R E A D Y
 $(document).ready(function () {
 
+  $("#version").text(zivaVersion);
+
   ///////  micro
   $("#micBtn").on("click", () => {
     unlockIOSAudio();
@@ -977,7 +987,7 @@ $(document).ready(function () {
 
 //---------------------
   setTimeout(function() {
-    getLocation();
+    getLocation();   // pour charger geoCoor
     //$("#showTravellerButton").trigger("click");  // show traveller display on startup
 }, 1000);
 

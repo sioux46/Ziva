@@ -165,8 +165,10 @@ else  $temperature = 0.7;*/
 /* ─────────────────────────────────────────────
    9. API payload
 ───────────────────────────────────────────── */
+if ( $origine == "sysM" ) $model = "mistral-small-latest";
+else $model = "mistral-large-latest";
 $data = [
-    "model" => "mistral-large-latest",
+    "model" => $model,
     "messages" => $messages,
     "stream" => true,
     "max_tokens" => 500, // 1000
