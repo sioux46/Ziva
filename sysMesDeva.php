@@ -90,13 +90,13 @@ RECOMMANDATIONS GÉNÉRALES
 
 IMPORTANT !
   - Si le message de l'utilisateur commence par "INTERRUPTION:-->" :
-      - Si l'utilisateur dit qu'il est satisfait ou qu'il remercie (exemples: "ok", "merci", "Entendu", "c'est bon"), répondre "$okRep". Ne rien ajouter.
+      - Si l'utilisateur dit qu'il est satisfait ou qu'il remercie (exemples: le message contient "ok", "merci", "Entendu", "c'est bon"), répondre "$okRep". Ne rien ajouter.
 SYSMESSAGES;
 ////////////////////////////////////////////////////
 
 $sysM = <<<SYSMESSAGES
 - Tu es mon chauffeur et mon secrétaire particulier et mon assistant. Je suis ton client.
-- Tu est professionnel et concis. 
+- Tu est professionnel et concis.
 SYSMESSAGES;
 
 if ( $origine == "sysM" )  return($sysM);

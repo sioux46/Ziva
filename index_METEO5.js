@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.27.1";
+var zivaVersion = "v6.03.25.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
@@ -59,7 +59,6 @@ recognition.interimResults = true;
 // suivre l’état réel du micro
 recognition.onstart = ()=> {
   if (!micEnabled) return;
-  // if ( aiSpeaking ) return; // barge in interdit (Pour PC ?)
   recognitionRunning = true;
 };
 
@@ -161,8 +160,6 @@ function interruptAI(){
     if(aiWasInterrupted) return;
 
     console.log("interruptAI:");
-    console.log("aiSpeaking: ", aiSpeaking);
-
     //console.log("assistantVisible: " + assistantVisible);
     //console.log("assistantPending: " + assistantPending);
 
@@ -383,7 +380,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
     // 🔥 PROTECTION FINALE ANTI-FUITE
     if(isInternalLeak(text)){
-        console.warn();("🚫 isInternalLeak bloqué:", text);
+        console.console.warn();("🚫 Leak bloqué:", text);
         aiBusy = false;
         return;
     }
@@ -396,7 +393,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         // 🌦️ CAS MÉTÉO
         // ===============================
         if (classification.is_weather === "oui") {
-        //if ( !classification ) { // pas d'appel api externe
             let wData = "";
             let weather = "";
             const coords = await fetchCoordinatesData(classification.location);
@@ -406,7 +402,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current_weather=true&timezone=Europe/Paris`;
             }
             else {
-              url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&forecast_days=16`
+              url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&forecast_days=7`
             }
 
             const weatherData = await fetchWeatherData(url);
@@ -439,11 +435,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               - Ne pas donner l'année pour les dates.
               - Ne pas dire "8,7°C" mais dire "8 degrés".
               - Ne pas dire "2,4 km/h" mais dire "2 kilomètres heure".
-              - Ne pas dire "1,1 mm mais 1 millimètre".
-              - Ne pas dire "171°" mais 171 degrés.
-              - Ne pas dire "min" mais minimum.
-              - Ne pas dire "max" mais maximum.
-              - Ne pas dire "de 6 degrés minimum à 10 degrés maximum" mais "de 6 degrés à 10 degrés".
             `;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
@@ -477,7 +468,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
     } catch (e) {
 
-        console.warn("Erreur classification:", e, "Traité comme cas normal");
+        console.warn("Erreur classification:", e);
 
         if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
         else text = "--> " + text;
@@ -999,6 +990,7 @@ $(document).ready(function () {
     getLocation();   // pour charger geoCoor
     //$("#showTravellerButton").trigger("click");  // show traveller display on startup
 }, 1000);
+
 
 }); // *********************************************  F I N   R E A D Y
 //  *******************************************************************

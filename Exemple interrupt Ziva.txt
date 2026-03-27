@@ -1,0 +1,19 @@
+--> quel temps la semaine prochaine
+Voici les prévisions météo pour la semaine prochaine
+
+INTERRUPTION: --> attends attends une seconde arrête-toi s'il te plaît
+Je m'arrête. Dites-moi quand reprendre.
+
+--> ok c'est bon tu peux reprendre
+Voici la météo pour la semaine prochaine :
+- Vendredi 27 mars : de 3 degrés à 11 degrés, 1 millimètre de précipitations.
+- Samedi 28 mars : de 6 degrés à 12 degrés, 6 millimètres de précipitations.
+
+INTERRUPTION: --> attends arrête encore une fois attends il y a quelqu'un qui sonne à ma porte
+Je patiente. Dites-moi quand reprendre.
+
+--> voilà dis-moi la suite
+- Dimanche 29 mars : de 5 degrés à 13 degrés, ensoleillé.
+- Lundi 30 mars : de 7 degrés à 15 degrés, nuageux.
+- Mardi 31 mars : de 8 degrés à 16 degrés, 2 millimètres de précipitations.
+<etc...>

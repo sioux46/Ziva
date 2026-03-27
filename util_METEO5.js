@@ -331,7 +331,7 @@ fetch(url)
 }
 
 ////// géoloc du navigateur
-function obtenirPosition() {  // not used
+function obtenirPosition() {
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -352,27 +352,6 @@ function obtenirPosition() {  // not used
 // Appeler la fonction au chargement de la page ou sur un événement utilisateur
 // obtenirPosition();
 
-////// not used
-async function getBigCountries() {
-  try {
-    const response = await fetch("https://restcountries.com/v3.1/all?fields=name,population");
-    const data = await response.json();
-
-    // Filtrer les pays avec population > 100M
-    const resultats = data
-      .filter(country => country.population > 100000000)
-      .map(country => ({
-        nom: country.name.common,
-        population: country.population
-      }));
-
-    return resultats;
-
-  } catch (error) {
-    console.error("Erreur :", error);
-    return [];
-  }
-}
 
 //*********************************************************************
 //************************  S N C F  **********************************

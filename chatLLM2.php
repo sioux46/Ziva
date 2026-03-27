@@ -134,7 +134,7 @@ $data = [
     "model" => "mistral-small-latest", // large medium small
     "messages" => $messages,
     "max_tokens" => 500,
-    "temperature" => 0.7 // $temperature
+    "temperature" => 0.1 // $temperature
 ];
 
 /* ─────────────────────────────────────────────
