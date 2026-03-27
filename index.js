@@ -179,9 +179,9 @@ function interruptAI(){
     // ===============================
     // 2️⃣ snapshot EXACT de ce qui a été parlé
     // ===============================
-    const snapshot = cleanAssistantText(assistantVisible || assistantPending);
-    //const snapshot = cleanAssistantText(assistantVisible); //
-    //assistantPending = assistantVisible; // 🔥 aligne la vérité  ???
+    //const snapshot = cleanAssistantText(assistantVisible || assistantPending);
+    const snapshot = cleanAssistantText(assistantVisible); //
+    assistantPending = assistantVisible; // 🔥 aligne la vérité  ???
 
     // ===============================
     // 3️⃣ STOP réseau IMMÉDIAT
@@ -212,9 +212,16 @@ function interruptAI(){
     // 6️⃣ commit IMMÉDIAT du snapshot
     // ===============================
     if(snapshot && snapshot.trim().length > 0){
+
         assistantMessageCommitted = false;
-        renderLiveAssistant(assistantVisible); //$("#chat").text("");
-        commitAssistant(snapshot);
+
+        // renderLiveAssistant(assistantVisible); //$("#chat").text("");
+        // commitAssistant(snapshot);
+
+        //const snapshot = cleanAssistantText(assistantVisible);
+        if(snapshot){
+            commitAssistant(snapshot);
+        }
     }
 
     // ===============================
@@ -444,10 +451,11 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               - Ne pas dire "min" mais minimum.
               - Ne pas dire "max" mais maximum.
               - Ne pas dire "de 6 degrés minimum à 10 degrés maximum" mais "de 6 degrés à 10 degrés".
+              - Pour la direction du vent, ne pas donner les degrés mais les points cardinaux.
             `;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
-            else text = "--> " + text;
+            //else text = "--> " + text;
 
             addUser(text);
 
@@ -468,7 +476,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         else {
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
-            else text = "--> " + text;
+            //else text = "--> " + text;
 
             addUser(text);
             micEnabled = true;
@@ -480,7 +488,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         console.warn("Erreur classification:", e, "Traité comme cas normal");
 
         if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
-        else text = "--> " + text;
+        //else text = "--> " + text;
 
         addUser(text);
         micEnabled = true;
@@ -512,7 +520,12 @@ function flushTTS(){
 function renderChat() {
     let out = "";
     for (let m of chatBuffer) {
-        out += m.content + "\n";
+      if(m.role === "user"){
+        out += "👤 -->\n" + m.content + "\n";
+      }
+      if(m.role === "assistant"){
+        out += "<-- 🤖 \n" + m.content + "\n";
+      }
     }
     // Ajoute le texte en cours de génération
     if (assistantVisible && !assistantMessageCommitted) {
@@ -534,7 +547,12 @@ function renderLiveAssistant(){
     let history = "";
 
     for(let m of chatBuffer){
-        history += m.content + "\n";
+      if(m.role === "user"){
+        history += "👤 -->\n" + m.content + "\n";
+      }
+      if(m.role === "assistant"){
+        history += "<-- 🤖 \n" + m.content + "\n";
+      }
     }
 
     // supprimer doublon dans #chat
