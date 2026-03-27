@@ -181,7 +181,7 @@ function interruptAI(){
     // ===============================
     //const snapshot = cleanAssistantText(assistantVisible || assistantPending);
     const snapshot = cleanAssistantText(assistantVisible); //
-    assistantPending = assistantVisible; // 🔥 aligne la vérité  ???
+    //assistantPending = assistantVisible; // 🔥 aligne la vérité  ???
 
     // ===============================
     // 3️⃣ STOP réseau IMMÉDIAT
