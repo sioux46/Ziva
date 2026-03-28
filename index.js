@@ -58,7 +58,7 @@ recognition.lang = "fr-FR";
 recognition.continuous = true;
 recognition.interimResults = true;
 
-//------------------------------
+//----------------------------------------------  ONSTART
 // suivre l’état réel du micro
 recognition.onstart = ()=> {
   if (!micEnabled) return;
@@ -66,7 +66,7 @@ recognition.onstart = ()=> {
   recognitionRunning = true;
 };
 
-//------------------------------
+//------------------------------------------------ ONEND
 // Chrome coupe parfois le micro en mode continu.
 recognition.onend = ()=>{
     recognitionRunning = false;
@@ -76,7 +76,7 @@ recognition.onend = ()=>{
     }
 };
 
-//-------------------------------
+//------------------------------------------------ ONRESULT
 recognition.onresult = e => {
 
   let finalText = "";
@@ -150,7 +150,7 @@ recognition.onresult = e => {
   }
 };
 
-  //----------------------
+  //-------------------------------------------------- ONERROR
 recognition.onerror= ()=> recognitionRunning = false;
 
 
@@ -906,6 +906,8 @@ function sendToAI_php(chatBuffer, origine){
                   assistantVisible = assistantPending;
                   //renderLiveAssistant(assistantVisible); // ???
               }
+              console.log("assistantPending: ", assistantPending);
+              console.log("ttsBuffer: ", ttsBuffer);
               speakChunk();
             }
         }
@@ -986,7 +988,12 @@ function isAndroid() {
     const userAgent = navigator.userAgent || navigator.vendor || window.opera;
     return /android/i.test(userAgent);
 }
-
+function isWindows() {
+    return /Windows/i.test(navigator.userAgent);
+}
+function notApple() {
+    return isAndroid() || isWindows(); // même traitement pour les deux
+}
 
 // ******************************************************************
 // *********************************************   $ready$  R E A D Y
