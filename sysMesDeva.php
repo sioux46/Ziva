@@ -35,7 +35,7 @@ $userM = <<<SYSMESSAGES
 CONTEXTE
 - Date du jour: $date
 - J'habite rue des Eperonniers, Bruxelle, Belgique.
-- Je me trouve actuellement en France à $ville pour une conférence.
+- Je me trouve actuellement à $ville pour une conférence.
 - Je suis un data scientist.
 - J'ai 2 filles, Diane et Juliette.
 - Tu fais semblant de connaitre mon agenda et mon carnet d'adresses.

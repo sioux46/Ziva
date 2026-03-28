@@ -4,10 +4,13 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.27.1";
+var zivaVersion = "v6.03.28.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
+
+let actualGeolocDefault = "Paris";
+let actualGeoLoc;
 
 // une minute de silence
 let lastSpeechTime = Date.now();
@@ -179,8 +182,8 @@ function interruptAI(){
     // ===============================
     // 2️⃣ snapshot EXACT de ce qui a été parlé
     // ===============================
-    //const snapshot = cleanAssistantText(assistantVisible || assistantPending);
-    const snapshot = cleanAssistantText(assistantVisible); //
+    const snapshot = cleanAssistantText(assistantVisible || assistantPending);
+    //const snapshot = cleanAssistantText(assistantVisible); //
     //assistantPending = assistantVisible; // 🔥 aligne la vérité  ???
 
     // ===============================
@@ -385,7 +388,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
     aiBusy = true;
     micEnabled = false;
 
-    text = text.trim().replace(/\s+/g, " ");
+    text = text.trim().replace(/\s+/g, " "); // bonus filtre écho
 
 
     // 🔥 PROTECTION FINALE ANTI-FUITE
@@ -403,6 +406,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         // 🌦️ CAS MÉTÉO
         // ===============================
         if (classification.is_weather === "oui") {
+          console.log( "Is_weather: OUI");
         //if ( !classification ) { // pas d'appel api externe
             let wData = "";
             let weather = "";
@@ -418,7 +422,8 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
             const weatherData = await fetchWeatherData(url);
 
-            if ( classification.is_today === "oui") {
+            if ( classification.is_today === "OUI") {
+              console.log( "Is_today: oui");
               wData = weatherData.current_weather;
               weather = {
                         "weather": getWeatherDescription(wData.is_day),
@@ -428,6 +433,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               };
             }
             else {
+              console.log( "Is_today: NON");
               wData = weatherData.daily;
               weather = {
                         "temperature_2m_max": wData.temperature_2m_max,
@@ -474,6 +480,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         // 💬 CAS NORMAL
         // ===============================
         else {
+            console.log( "Is_weather: NON");
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
             //else text = "--> " + text;
@@ -830,7 +837,7 @@ function sendToAI_php(chatBuffer, origine){
 
     try { city = actualGeoLoc.city }
     catch(e) {
-      city = "Paris";
+      city = actualGeolocDefault;
       console.warn('Echec de la retro-localisation', e);
       $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!");
     }

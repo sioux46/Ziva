@@ -4,10 +4,13 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.27.1";
+var zivaVersion = "v6.03.28.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
+
+let actualGeolocDefault = "Paris";
+let actualGeoLoc;
 
 // une minute de silence
 let lastSpeechTime = Date.now();
@@ -212,9 +215,16 @@ function interruptAI(){
     // 6️⃣ commit IMMÉDIAT du snapshot
     // ===============================
     if(snapshot && snapshot.trim().length > 0){
+
         assistantMessageCommitted = false;
-        renderLiveAssistant(assistantVisible); //$("#chat").text("");
-        commitAssistant(snapshot);
+
+        // renderLiveAssistant(assistantVisible); //$("#chat").text("");
+        // commitAssistant(snapshot);
+
+        //const snapshot = cleanAssistantText(assistantVisible);
+        if(snapshot){
+            commitAssistant(snapshot);
+        }
     }
 
     // ===============================
@@ -378,7 +388,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
     aiBusy = true;
     micEnabled = false;
 
-    text = text.trim().replace(/\s+/g, " ");
+    text = text.trim().replace(/\s+/g, " "); // bonus filtre écho
 
 
     // 🔥 PROTECTION FINALE ANTI-FUITE
@@ -396,6 +406,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         // 🌦️ CAS MÉTÉO
         // ===============================
         if (classification.is_weather === "oui") {
+          console.log( "Is_weather: OUI");
         //if ( !classification ) { // pas d'appel api externe
             let wData = "";
             let weather = "";
@@ -411,7 +422,8 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
             const weatherData = await fetchWeatherData(url);
 
-            if ( classification.is_today === "oui") {
+            if ( classification.is_today === "OUI") {
+              console.log( "Is_today: oui");
               wData = weatherData.current_weather;
               weather = {
                         "weather": getWeatherDescription(wData.is_day),
@@ -421,6 +433,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               };
             }
             else {
+              console.log( "Is_today: NON");
               wData = weatherData.daily;
               weather = {
                         "temperature_2m_max": wData.temperature_2m_max,
@@ -444,10 +457,11 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               - Ne pas dire "min" mais minimum.
               - Ne pas dire "max" mais maximum.
               - Ne pas dire "de 6 degrés minimum à 10 degrés maximum" mais "de 6 degrés à 10 degrés".
+              - Pour la direction du vent, ne pas donner les degrés mais les points cardinaux.
             `;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
-            else text = "--> " + text;
+            //else text = "--> " + text;
 
             addUser(text);
 
@@ -466,9 +480,10 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         // 💬 CAS NORMAL
         // ===============================
         else {
+            console.log( "Is_weather: NON");
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
-            else text = "--> " + text;
+            //else text = "--> " + text;
 
             addUser(text);
             micEnabled = true;
@@ -480,7 +495,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         console.warn("Erreur classification:", e, "Traité comme cas normal");
 
         if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
-        else text = "--> " + text;
+        //else text = "--> " + text;
 
         addUser(text);
         micEnabled = true;
@@ -512,7 +527,12 @@ function flushTTS(){
 function renderChat() {
     let out = "";
     for (let m of chatBuffer) {
-        out += m.content + "\n";
+      if(m.role === "user"){
+        out += "👤 -->\n" + m.content + "\n";
+      }
+      if(m.role === "assistant"){
+        out += "<-- 🤖 \n" + m.content + "\n";
+      }
     }
     // Ajoute le texte en cours de génération
     if (assistantVisible && !assistantMessageCommitted) {
@@ -534,7 +554,12 @@ function renderLiveAssistant(){
     let history = "";
 
     for(let m of chatBuffer){
-        history += m.content + "\n";
+      if(m.role === "user"){
+        history += "👤 -->\n" + m.content + "\n";
+      }
+      if(m.role === "assistant"){
+        history += "<-- 🤖 \n" + m.content + "\n";
+      }
     }
 
     // supprimer doublon dans #chat
@@ -812,7 +837,7 @@ function sendToAI_php(chatBuffer, origine){
 
     try { city = actualGeoLoc.city }
     catch(e) {
-      city = "Paris";
+      city = actualGeolocDefault;
       console.warn('Echec de la retro-localisation', e);
       $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!");
     }
