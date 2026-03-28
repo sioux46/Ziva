@@ -393,7 +393,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
     // 🔥 PROTECTION FINALE ANTI-FUITE
     if(isInternalLeak(text)){
-        console.warn();("🚫 isInternalLeak bloqué:", text);
+        console.warn("🚫 isInternalLeak bloqué:", text);
         aiBusy = false;
         return;
     }
