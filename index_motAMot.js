@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.03.29.2";
+var zivaVersion = "v6.03.28.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
@@ -62,7 +62,7 @@ recognition.interimResults = true;
 // suivre l’état réel du micro
 recognition.onstart = ()=> {
   if (!micEnabled) return;
-  if ( aiSpeaking && isAndroid() ) return; // barge in interdit
+  // if ( aiSpeaking ) return; // barge in interdit (Pour PC ?)
   recognitionRunning = true;
 };
 
@@ -160,8 +160,6 @@ recognition.onerror= ()=> recognitionRunning = false;
 // STOP GLOBAL barge-in  //////////    i n t e r r u p t AI
 function interruptAI(){
 
-    if ( aiSpeaking && isAndroid() ) return; // barge in interdit
-
     // 🔒 idempotence dure
     if(aiWasInterrupted) return;
 
@@ -220,7 +218,7 @@ function interruptAI(){
 
         assistantMessageCommitted = false;
 
-        // renderLiveAssistant(assistantVisible); //$("#chat").text("");
+        // renderLiveAssistant(); //$("#chat").text("");
         // commitAssistant(snapshot);
 
         //const snapshot = cleanAssistantText(assistantVisible);
@@ -287,7 +285,8 @@ function playTTS(){
         //console.log("assistantVisible 2: " + assistantVisible);
 
 
-        renderLiveAssistant(assistantVisible); // ???
+        //renderLiveAssistant(); // ???
+        renderChat();
     };
 
     // ===============================
@@ -339,7 +338,7 @@ function speakChunk(){
     if(aiWasInterrupted) return;
     if(assistantFrozen) return;
     if(aiGeneration === interruptedGeneration) return;
-    if(ttsBuffer.length < 50) return;  // 10 5 20  ???
+    if(ttsBuffer.length < 20) return;  // 50 10 5  ???
 
     let cut = findCutPoint(ttsBuffer);
     if(cut === -1) return;
@@ -424,8 +423,8 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
             const weatherData = await fetchWeatherData(url);
 
-            if ( classification.is_today === "oui") {
-              console.log( "Is_today: OUI");
+            if ( classification.is_today === "OUI") {
+              console.log( "Is_today: oui");
               wData = weatherData.current_weather;
               weather = {
                         "weather": getWeatherDescription(wData.is_day),
@@ -526,6 +525,22 @@ function flushTTS(){
 }
 
 //////
+const SPEED = 1;
+
+function animateText(){
+    if(assistantVisible.length < assistantPending.length){
+
+        assistantVisible += assistantPending.slice(
+            assistantVisible.length,
+            assistantVisible.length + SPEED
+        );
+
+        renderChat();
+        requestAnimationFrame(animateText);
+    }
+}
+
+//////
 function renderChat() {
     let out = "";
     for (let m of chatBuffer) {
@@ -544,7 +559,11 @@ function renderChat() {
     // supprimer doublon dans #chat
     out = supDoublons(out);
 
-    $("#chat").text(out);
+    const el = $("#chat");
+    if(el.text() !== out){
+        el.text(out);
+    }
+    //$("#chat").text(out);
     //console.log("---------------- renderChat >>> " + out);
 }
 
@@ -628,11 +647,11 @@ function findCutPoint(text){
     // ===============================
     // 3️⃣ virgule agressive (clé barge-in)
     // ===============================
-    if(text.length > 60){
+    if(text.length > 35){
         let c = text.lastIndexOf(",");
-        if(c > 30) {
-          console.log("-------->>> virgule agressive (clé barge-in)");
-          return c + 1;
+        if(c > 15) {
+            console.log("-------->>> virgule rapide");
+            return c + 1;
         }
     }
 
@@ -640,17 +659,15 @@ function findCutPoint(text){
     // 4️⃣ 🔥 NOUVEAU : coupe de secours par longueur
     // (super important pour la réactivité)
     // ===============================
-    //if(text.length > 80){  //  120 ???
-    if(text.length > 60) { // 120
+    if(text.length > 35) {
 
         // coupe au dernier espace propre
         let space = text.lastIndexOf(" ");
-        if(space > 40) {
-          console.log("-------->>> cut au dernier espace propre");
-          return space;
+        if(space > 20) {
+            console.log("-------->>> cut court");
+            return space;
         }
     }
-
     return -1;
 }
 
@@ -847,6 +864,9 @@ function sendToAI_php(chatBuffer, origine){
     // évite les reliquats inter-requêtes.
     assistantPending = "";
     assistantVisible = "";
+    // 🔥 lancer animation UNE fois
+    requestAnimationFrame(animateText);
+
     ttsBuffer = "";
     ttsQueue.length = 0;
 
@@ -903,13 +923,15 @@ function sendToAI_php(chatBuffer, origine){
               assistantPending += tok;
               ttsBuffer += tok;
 
-              // fallback visuel si pas de TTS
+              /*// fallback visuel si pas de TTS
               if(!speakerEnabled){
                   assistantVisible = assistantPending;
-                  //renderLiveAssistant(assistantVisible); // ???
-              }
+                  //renderLiveAssistant(); // ???
+              }*/
+
               console.log("assistantPending: ", assistantPending);
               console.log("ttsBuffer: ", ttsBuffer);
+              speakChunk();
               speakChunk();
             }
         }
