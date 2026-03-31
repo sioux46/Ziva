@@ -1028,6 +1028,10 @@ $(document).ready(function () {
 
   });
 
+  $("#cutBtn").on("click", () => {
+    interruptAI();
+  });
+
 //---------------------
   setTimeout(function() {
     getLocation();   // pour charger geoCoor

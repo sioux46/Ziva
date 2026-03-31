@@ -56,6 +56,7 @@ if (empty($_SESSION['csrf'])) {
       <div class="mt-2">
         <button id="micBtn" class="btn btn-secondary">🎤</button>
         <button id="spkBtn" class="btn btn-secondary">🔊</button>
+        <button id="cutBtn" class="btn btn-secondary">✂️</button>
         <!--<button id="sendBtn" class="btn btn-primary">Envoyer</button>-->
       </div>
     </div>
