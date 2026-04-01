@@ -1086,6 +1086,10 @@ $(document).ready(function () {
     //$("#showTravellerButton").trigger("click");  // show traveller display on startup
 }, 1000);
 
+//----------------------
+if ( isNotApple() ) $("#cutBtn").prop("disabled", false);
+else $("#cutBtn").prop("disabled", true);
+
 /*//----------------------
 $(".btn").on("click", function () {
   $(this).prop("disabled", true);
