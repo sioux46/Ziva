@@ -11,7 +11,7 @@ if (empty($_SESSION['csrf'])) {
   <head>
     <meta charset="utf-8">
     <meta name="csrf-token" content="<?= $_SESSION['csrf'] ?>">
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <!-- <meta name="viewport" content="width=device-width, initial-scale=1"> -->
     <title>ZIVA</title>
     <link rel="icon" href="icons/billeJauneSmall.png" type="image/png">
@@ -48,19 +48,19 @@ if (empty($_SESSION['csrf'])) {
     <script src="jquery.resizeImg.js"></script>
     <script src="mobileBUGFix.js"></script>
     <!--                          chatTrace    ------------------------------>
-    <div class="container p-3">
-      <div id="version">
-      </div>
-      <textarea id="chat" class="form-control p-3 mb-2" style="height:500px;overflow:auto"></textarea>
-      <!--<textarea id="input" class="form-control"></textarea>-->
-      <div class="mt-2">
-        <button id="micBtn" class="btn btn-secondary">🎤</button>
-        <button id="spkBtn" class="btn btn-secondary">🔊</button>
-        <button id="cutBtn" class="btn btn-secondary">✂️</button>
-        <!--<button id="sendBtn" class="btn btn-primary">Envoyer</button>-->
+    <div class="container p-3 d-flex flex-column" style="height: 85vh;">
+      <div id="version"></div>
+
+      <textarea id="chat" class="form-control p-3 mb-2 flex-grow-1"></textarea>
+
+      <div class="mt-2 d-flex align-items-center">
+        <button id="micBtn" class="btn btn-light">🎤</button>
+        <button id="spkBtn" class="btn btn-light ms-2">🔊</button>
+
+        <button id="cutBtn" class="btn btn-light ms-auto">✂️</button>
+        <button id="trashBtn" class="btn btn-light ms-2">🗑️</button>
       </div>
     </div>
-
 
     <!--<div id="chatTraceContainer" class="container-fluid">
       <div class="row ms-1 me-1 mt-2 pe-2 ps-2">
