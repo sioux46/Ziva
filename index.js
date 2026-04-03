@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.04.01.2";
+var zivaVersion = "v6.04.03.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
@@ -42,7 +42,7 @@ let lastTTSEnd = 0;
 let xhrLLM = null;
 
 let micEnabled = false;
-let speakerEnabled = true;
+let speakerEnabled = false;
 
 // iOS
 let iosAudioUnlocked = false;
@@ -63,7 +63,7 @@ recognition.interimResults = true;
 // suivre l’état réel du micro
 recognition.onstart = ()=> {
   if (!micEnabled) return;
-  if ( aiSpeaking && isAndroid() ) return; // barge in interdit
+  if ( aiSpeaking && isNotApple() ) return; // barge in interdit
   recognitionRunning = true;
 };
 
@@ -230,11 +230,6 @@ function interruptAI(){
     if(snapshot && snapshot.trim().length > 0){
 
         assistantMessageCommitted = false;
-
-        // renderLiveAssistant(assistantVisible); //$("#chat").text("");
-        // commitAssistant(snapshot);
-
-        //const snapshot = cleanAssistantText(assistantVisible);
         if(snapshot){
             commitAssistant(snapshot);
         }
@@ -297,8 +292,7 @@ function playTTS(){
         assistantVisible += item.raw;
         //console.log("assistantVisible 2: " + assistantVisible);
 
-
-        renderLiveAssistant(assistantVisible); // ???
+        renderChat();
     };
 
     // ===============================
@@ -549,7 +543,7 @@ function renderChat() {
     }
     // Ajoute le texte en cours de génération
     if (assistantVisible && !assistantMessageCommitted) {
-        out += assistantVisible + "\n";
+        out += "<-- 🤖 \n" + assistantVisible + "\n";
     }
 
     // supprimer doublon dans #chat
@@ -557,29 +551,6 @@ function renderChat() {
 
     $("#chat").text(out);
     //console.log("---------------- renderChat >>> " + out);
-}
-
-
-//////
-function renderLiveAssistant(){
-
-    // texte utilisateur déjà validé
-    let history = "";
-
-    for(let m of chatBuffer){
-      if(m.role === "user"){
-        history += "👤 -->\n" + m.content + "\n";
-      }
-      if(m.role === "assistant"){
-        history += "<-- 🤖 \n" + m.content + "\n";
-      }
-    }
-
-    // supprimer doublon dans #chat
-    history = supDoublons(history);
-
-    // rendu TEXTE
-    $("#chat").text(history);
 }
 
 //////
@@ -916,8 +887,10 @@ function sendToAI_php(chatBuffer, origine){
 
               // fallback visuel si pas de TTS
               if(!speakerEnabled){
-                  assistantVisible = assistantPending;
-                  //renderLiveAssistant(assistantVisible); // ???
+                //assistantVisible = assistantPending; // avant
+                // 🔥 toujours garder une source visible // après
+                assistantVisible += tok;   // ⚠️ pas = mais +=
+                renderChat();
               }
               //console.log("assistantPending: ", assistantPending);
               //console.log("ttsBuffer: ", ttsBuffer);
@@ -979,7 +952,7 @@ function unlockIOSAudio(){
 }
 
 //////
-function startSilenceWatcher(){
+function startSilenceWatcher(){ // couper le mic après 1mn de silence
 
     if(silenceWatcher) clearInterval(silenceWatcher);
     silenceWatcher = setInterval(()=>{
@@ -1007,6 +980,23 @@ function isWindows() {
 }
 function isNotApple() {
     return isAndroid() || isWindows(); // même traitement pour les deux
+}
+
+//////
+function sendTextInput(){
+
+  const input = $("#textInput");
+  let text = input.val().trim();
+  if(!text) return;
+
+  // 🔥 comportement IDENTIQUE au vocal
+  if(aiSpeaking || aiStreaming){
+    buttonInterruptAI = true;
+    interruptAI();
+  }
+
+  input.val("");
+  submitUser(text);
 }
 
 /*//////
@@ -1042,7 +1032,7 @@ $(document).ready(function () {
 
   $("#version").text(zivaVersion);
 
-  ////////////////////////////// micro
+  //////////////////////////////      micro
   $("#micBtn").on("click", () => {
     unlockIOSAudio();
     micEnabled = !micEnabled;
@@ -1059,7 +1049,7 @@ $(document).ready(function () {
     else $("#micBtn").removeClass("btn-danger").addClass("btn-light");
   });
 
-  ///////////////////////////// haut-parleur
+  /////////////////////////////     haut-parleur
   $("#spkBtn").on("click", () => {
     unlockIOSAudio();  //  déverrouille iOS
     speakerEnabled=!speakerEnabled;
@@ -1079,6 +1069,19 @@ $(document).ready(function () {
     $("#chat").text("");
     chatBuffer = [];
   });
+
+//----------------------
+// clic bouton envoi texte
+$("#sendBtn").on("click", sendTextInput);
+
+// touche ENTER
+$("#textInput").on("keydown", function(e){
+  if(e.key === "Enter"){
+    e.preventDefault();
+    sendTextInput();
+  }
+});
+$("#textInput").focus();
 
 //---------------------
   setTimeout(function() {

@@ -89,8 +89,9 @@ RECOMMANDATIONS GÉNÉRALES
   - Jamais d'abréviation. ne dites pas "il est 16h30" mais "il est 16 heure 30."
 
 IMPORTANT !
-  - Si le message de l'utilisateur commence par "INTERRUPTION:-->" :
-      - Si l'utilisateur dit qu'il est satisfait ou qu'il remercie (exemples: le message contient "ok", "merci", "Entendu", "c'est bon"), répondre "$okRep". Ne rien ajouter.
+- Si le message de l'utilisateur commence par "INTERRUPTION:-->" :
+      - Si c'est une question, répondez.
+      - Sinon si l'utilisateur dit qu'il est satisfait ou qu'il remercie (exemples: le message contient "ok", "merci", "Entendu", "c'est bon"), répondrez "$okRep" et attendez la prochaine question sans rien ajouter.
 SYSMESSAGES;
 ////////////////////////////////////////////////////
 
@@ -110,6 +111,7 @@ else  {
 /////////////////////////////////////////////
 
 //      - Si c'est une question ou une demande, répondre à la question ou à la demande.
+//
 
 
 //      NE PAS RÉPÉTER NI CONTINUER ta réponse précédente.

@@ -1,6 +1,13 @@
+#sendBtn {
+  font-size: 2.2rem;
+  width: 60px;
+  height: 60px;
+  border: 0;
+}
+
 #cutBtn,
 #trashBtn {
-  font-size: 2rem;
+  font-size: 2.2rem;
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -8,7 +15,7 @@
 
 #micBtn,
 #spkBtn {
-  font-size: 2rem;
+  font-size: 2.2rem;
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -20,6 +27,10 @@
 
 #spkBtn.active {
   background: #ffc107;
+}
+
+#sendBtn {
+  background-color: white;
 }
 
 /*# sourceMappingURL=index.css.map */

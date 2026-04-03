@@ -47,12 +47,23 @@ if (empty($_SESSION['csrf'])) {
     <!-- resizeImg -->
     <script src="jquery.resizeImg.js"></script>
     <script src="mobileBUGFix.js"></script>
+    <!----------------------------------------------------------------------->
     <!--                          chatTrace    ------------------------------>
     <div class="container p-3 d-flex flex-column" style="height: 85vh;">
       <div id="version"></div>
 
       <textarea id="chat" class="form-control p-3 mb-2 flex-grow-1"></textarea>
-
+      <!---->
+      <div class="mt-2 d-flex">
+        <input
+          id="textInput"
+          type="text"
+          class="form-control me-1"
+          placeholder="Écrire un message..."
+        >
+        <button id="sendBtn" class="btn btn-primary">📤</button>
+      </div>
+      <!---->
       <div class="mt-2 d-flex align-items-center">
         <button id="micBtn" class="btn btn-light">🎤</button>
         <button id="spkBtn" class="btn btn-light ms-2">🔊</button>
