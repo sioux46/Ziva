@@ -63,13 +63,12 @@ if (empty($_SESSION['csrf'])) {
         >
         <button id="sendBtn" class="btn btn-primary">📤</button>
       </div>
-      <!---->
       <div class="mt-2 d-flex align-items-center">
-        <button id="micBtn" class="btn btn-light">🎤</button>
-        <button id="spkBtn" class="btn btn-light ms-2">🔊</button>
+        <button id="micBtn" class="btn">🎤</button>
+        <button id="spkBtn" class="btn">🔊</button>
+        <button id="cutBtn" class="btn ms-2">✂️</button>
 
-        <button id="cutBtn" class="btn btn-light ms-auto">✂️</button>
-        <button id="trashBtn" class="btn btn-light ms-2">🗑️</button>
+        <button id="trashBtn" class="btn ms-auto">🗑️</button>
       </div>
     </div>
 

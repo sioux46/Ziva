@@ -5,6 +5,7 @@
   width: 60px;
   height: 60px;
   border: 0;
+  background-color: white;
 }
 
 #cutBtn,
@@ -13,6 +14,7 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
+  border: 0;
 }
 
 #micBtn,
@@ -21,6 +23,7 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
+  border: 2px;
 }
 
 #micBtn.active {
@@ -31,6 +34,22 @@
   background: #ffc107;
 }
 
-#sendBtn {
-  background-color: white;
+#micBtn,
+#spkBtn,
+#cutBtn,
+#trashBtn {
+  transition: none;
+}
+
+#micBtn:hover,
+#spkBtn:hover {
+  filter: none;
+  opacity: 1;
+  box-shadow: none;
+}
+
+#micBtn:hover, #spkBtn:hover, #cutBtn:hover, #trashBtn:hover {
+  filter: none;
+  opacity: 1;
+  box-shadow: none;
 }
