@@ -93,7 +93,8 @@ function classifyUserQuestion(text) {
                   }
 
                   // 2. Extraire le contenu JSON depuis le format Markdown
-                  const jsonMatch = decodedResponse.match(/```json\n([\s\S]*?)\n```/);
+                  //const jsonMatch = decodedResponse.match(/```json\n([\s\S]*?)\n```/);
+                  const jsonMatch = decodedResponse.match(/```json\s*([\s\S]*?)\s*```/);
                   if (!jsonMatch || jsonMatch.length < 2) {
                       throw new Error("Format de réponse inattendu (bloc JSON non trouvé)");
                   }

@@ -86,6 +86,7 @@ if ($rate["c"] > 30) {
    5. Input size
 ───────────────────────────────────────────── */
 $raw = $_POST['chatBuffer'] ?? '';
+$raw = urldecode($raw); // 🔥 IMPORTANT
 if (strlen($raw) > 65536) {
     http_response_code(413);
     exit;
@@ -133,7 +134,7 @@ else  $temperature = 0.7;*/
 $data = [
     "model" => "mistral-small-latest", // large medium small
     "messages" => $messages,
-    "max_tokens" => 500,
+    "max_tokens" => 1000,
     "temperature" => 0.1 // $temperature
 ];
 
@@ -163,8 +164,15 @@ if ($response === false) {
 $out = json_decode($response, true);
 $reply = $out['choices'][0]['message']['content'] ?? '';
 
-////// echo json_encode(["reply" => $reply], JSON_THROW_ON_ERROR);
-echo json_encode($reply, JSON_THROW_ON_ERROR);
+echo $reply;
+
+//echo json_encode($reply, JSON_THROW_ON_ERROR);
+
+/*echo json_encode([
+    "reply" => $reply
+], JSON_THROW_ON_ERROR);*/
+
+
 
 /*echo "response: ";
 print_r("coucou");

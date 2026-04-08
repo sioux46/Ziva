@@ -414,13 +414,14 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
     try {
 
         const classification = await classifyUserQuestion(text);
+        console.log("is_weather: ", classification.is_weather);
 
         // ===============================
         // 🌦️ CAS MÉTÉO
         // ===============================
         if (classification.is_weather === "oui") {
-          console.log( "Is_weather: OUI");
-        //if ( !classification ) { // pas d'appel api externe
+            console.log( "is_hourly: ", classification.is_hourly);
+            console.log( "is_today: ", classification.is_his_today);
             let wData = "";
             let weather = "";
             const coords = await fetchCoordinatesData(classification.location);
