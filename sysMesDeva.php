@@ -21,7 +21,7 @@ function aleaCase($tableau) {
 function sysMessages($ville, $origine) {
 
   $date = json_decode($_POST['date'],true);
-  $okRep = aleaCase(["D'accord", "Parfait", "Compris", "Très bien", "A votre service"]);
+  $okRep = aleaCase(["A votre service", "Parfait", "Compris", "Très bien", "D'accord" ]);
 
 /*
 nowdoc avec quotes ( $sysM = <<<'SYSMESSAGES' ) pour ne pas interpreter les variables.
@@ -89,9 +89,15 @@ RECOMMANDATIONS GÉNÉRALES
   - Jamais d'abréviation. ne dites pas "il est 16h30" mais "il est 16 heure 30."
 
 IMPORTANT !
+Règles d'interruption :
 - Si le message de l'utilisateur commence par "INTERRUPTION:-->" :
-      - Si c'est une question, répondez.
-      - Sinon si l'utilisateur dit qu'il est satisfait ou qu'il remercie (exemples: le message contient "ok", "merci", "Entendu", "c'est bon"), répondrez "$okRep" et attendez la prochaine question sans rien ajouter.
+  - Si c'est une question, répondez uniquement à cette question. Ne reprenez jamais la réponse précédente.
+  - Si le message contient des mots de satisfaction ("merci", "Entendu", "c'est bon", "j'ai compris", etc.), répondez "$okRep". N'ajoutez rien d'autre et attendez la prochaine question.
+  Exemples :
+    - Utilisateur : Quelle est la capitale de la France ?"
+      → Répondez : "La capitale de la France est Paris."
+    - Utilisateur : "INTERRUPTION:--> Ok, c'est bon."
+      → Répondez : "D'accord" (et attendez la prochaine question).
 SYSMESSAGES;
 ////////////////////////////////////////////////////
 
@@ -110,10 +116,14 @@ else  {
 }
 /////////////////////////////////////////////
 
+/*
+- Si le message de l'utilisateur commence par "INTERRUPTION:-->" :
+      - Si c'est une question, répondez.
+      - Sinon si l'utilisateur dit qu'il est satisfait ou qu'il remercie (exemples: le message contient "ok", "merci", "Entendu", "c'est bon"), répondrez "$okRep" et attendez la prochaine question sans rien ajouter.
+*/
+
 //      - Si c'est une question ou une demande, répondre à la question ou à la demande.
 //
-
-
 //      NE PAS RÉPÉTER NI CONTINUER ta réponse précédente.
 // puis attendre la prochaine question.
 // exemples: la question contient "ok" ou "merci" ou "Entendu" ou "c'est bon",

@@ -1,11 +1,31 @@
 //  ziva/index.scss
 
+html,
+body {
+  touch-action: manipulation;
+}
+
+button.active {
+  box-shadow: 0 0 0 6px rgba(0, 123, 255, 0.25);
+  transform: scale(0.85);
+}
+
 #sendBtn {
   font-size: 2.2rem;
   width: 60px;
   height: 60px;
   border: 0;
   background-color: white;
+}
+
+#sendBtn:focus-visible,
+#textInput:focus-visible,
+#chat:focus-visible,
+#sendBtn:focus,
+#textInput:focus,
+#chat:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 #cutBtn,

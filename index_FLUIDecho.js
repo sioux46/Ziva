@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.04.08.1";
+var zivaVersion = "v6.04.04.3";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
@@ -47,6 +47,10 @@ let speakerEnabled = false;
 // iOS
 let iosAudioUnlocked = false;
 
+// buffer + débit contrôlé
+let displayBuffer = "";
+let displayTimer = null;
+
 //const synth = window.speechSynthesis;
 
 //                                         R E C O G N I T I O N
@@ -63,7 +67,7 @@ recognition.interimResults = true;
 // suivre l’état réel du micro
 recognition.onstart = ()=> {
   if (!micEnabled) return;
-  //if ( aiSpeaking && isNotApple() ) return; // barge in interdit
+  if ( aiSpeaking && isNotApple() ) return; // barge in interdit
   recognitionRunning = true;
 };
 
@@ -72,19 +76,13 @@ recognition.onstart = ()=> {
 recognition.onend = ()=>{
     recognitionRunning = false;
     lastTTSEnd = Date.now();
-    //if ( aiSpeaking && isNotApple() ) return; // barge in interdit
-    if( micEnabled /*&& isAndroid()*/ ){
-      setTimeout(()=>{
-        try{ recognition.start(); }
-        catch(e){ console.log("recog start:", e); }
-      }, 250); // 🔥 indispensable Android
+    if(micEnabled){
+        try{ recognition.start(); } catch(e){}
     }
 };
 
 //------------------------------------------------ ONRESULT
 recognition.onresult = e => {
-
-  //if ( aiSpeaking && isNotApple() ) return; // barge in interdit
 
   let finalText = "";
   let interimText = "";
@@ -176,7 +174,7 @@ function interruptAI(){
       buttonInterruptAI = false;
     }
     else if ( isNotApple() ) {
-      //return; // barge-in interdit pour Android & Windows
+      return; // barge-in interdit pour Android & Windows
     }
 
     // 🔒 idempotence dure
@@ -277,7 +275,7 @@ function playTTS(){
 
     u.lang  = "fr-FR";
     u.rate  = 1;
-    u.pitch = 1.8;
+    u.pitch = 1.6;
 
     // ===============================
     // ▶️ ONSTART (point critique)
@@ -293,10 +291,8 @@ function playTTS(){
         aiSpeaking = true;
 
         // ✅ append SEULEMENT si toujours valide
-        //console.log("assistantVisible 1: " + assistantVisible);
-        //console.log("u.onstart item.raw: " + item.raw);
-        assistantVisible += item.raw;
-        //console.log("assistantVisible 2: " + assistantVisible);
+
+        // assistantVisible += item.raw;
 
         renderChat();
     };
@@ -426,74 +422,17 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
             const coords = await fetchCoordinatesData(classification.location);
 
             let url = "";
-
-            if ( classification.is_hourly === "oui" && classification.is_today === "non" ) {
-              url = {
-                latitude: coords.lat,
-                longitude: coords.lon,
-                hourly: "weather_code,temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m",
-                forecast_hours: 16,
-                timezone: "Europe/Paris"
-              }
-            }
-            else if ( classification.is_hourly === "oui") {
-              url = {
-                latitude: coords.lat,
-                longitude: coords.lon,
-                hourly: "weather_code,temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m",
-                forecast_hours: 16,
-                timezone: "Europe/Paris"
-              }
-            }
-            else if ( classification.is_today === "oui") {
-              url = {
-                latitude: coords.lat,
-                longitude: coords.lon,
-                current_weather: true,
-                timezone: "Europe/Paris"
-              }
+            if ( classification.is_today === "oui") {
+              url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current_weather=true&timezone=Europe/Paris`;
             }
             else {
-              url = {
-                latitude: coords.lat,
-                longitude: coords.lon,
-                daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum",
-                forecast_days: 16,
-                timezone: "Europe/Paris"
-              }
+              url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&forecast_days=16`
             }
 
             const weatherData = await fetchWeatherData(url);
 
-
-            if ( classification.is_hourly === "oui" && classification.is_today === "non" ) {
-              console.log( "is_hourly: OUI, is_today: NON");
-              wData = weatherData.hourly;
-              weather = {
-                        "weather_code": wData.weather_code,
-                        "temperature": wData.temperature_2m,
-                        "apparent_temperature": wData.apparent_temperature,
-                        "precipitation": wData.precipitation,
-                        "time": wData.time,
-                        "wind_speed": wData.wind_speed_10m,
-                        "wind_direction": wData.wind_direction_10m
-              }
-            }
-            else if ( classification.is_hourly === "oui") {
-              console.log( "is_hourly: OUI");
-              wData = weatherData.hourly;
-              weather = {
-                        "weather_code": wData.weather_code,
-                        "temperature": wData.temperature_2m,
-                        "apparent_temperature": wData.apparent_temperature,
-                        "precipitation": wData.precipitation,
-                        "time": wData.time,
-                        "wind_speed": wData.wind_speed_10m,
-                        "wind_direction": wData.wind_direction_10m
-              }
-            }
-            else if ( classification.is_today === "oui") {
-              console.log( "is_today: OUI");
+            if ( classification.is_today === "oui") {
+              console.log( "Is_today: OUI");
               wData = weatherData.current_weather;
               weather = {
                         "weather": getWeatherDescription(wData.is_day),
@@ -503,12 +442,11 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               };
             }
             else {
-              console.log( "is_today: NON");
+              console.log( "Is_today: NON");
               wData = weatherData.daily;
               weather = {
-                        "weather_code": wData.weather_code,
-                        "temperature_max": wData.temperature_2m_max,
-                        "temperature_min": wData.temperature_2m_min,
+                        "temperature_2m_max": wData.temperature_2m_max,
+                        "temperature_2m_min": wData.temperature_2m_min,
                         "precipitation_sum": wData.precipitation_sum,
                         "time": wData.time
               }
@@ -610,35 +548,25 @@ function renderChat() {
         out += "<-- 🤖 \n" + assistantVisible + "\n";
     }
 
-    // supprimer doublon dans #chat ???
+    // supprimer doublon dans #chat
     out = supDoublons(out);
 
-    const chat = $("#chat")[0];
-    //const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
-    $("#chat").val(out);
-    chat.scrollTo({
-      top: chat.scrollHeight,
-      behavior: "smooth"
-    });
-    /*if (isNearBottom) {
-      chat.scrollTop = chat.scrollHeight;
-    }*/
+    $("#chat").text(out);
+    //console.log("---------------- renderChat >>> " + out);
 }
 
 //////
 function supDoublons(out) {
-  return out;
-/*  let input = out;
+
   // supprimer doublon dans #chat
   const sansDoublon = out.split('\n').slice(0, -1).join('\n'); // sup der ligne
   if ( sansDoublon != "" ) {
     if ( out.split('\n').pop() == sansDoublon.split('\n').pop() ) {
       out = sansDoublon;
-      console.log("Doublon trouvé. out: ", out);
-      console.log("en entrée: ", input);
+      console.log("Doublon trouvé");
     }
   }
-  return out;*/
+  return out;
 }
 
 
@@ -885,6 +813,30 @@ function looksLikeEcho(userText){
     return score > 0.55;
 }
 
+//////
+function scheduleDisplay(){
+
+    if(displayTimer) return;
+
+    displayTimer = setInterval(()=>{
+
+        if(displayBuffer.length === 0){
+            clearInterval(displayTimer);
+            displayTimer = null;
+            return;
+        }
+
+        // vitesse ici 👇
+        //const speed = 1; // caractères par tick
+        let speed = Math.max(1, Math.floor(displayBuffer.length / 30)); // 20
+
+        assistantVisible += displayBuffer.slice(0, speed);
+        displayBuffer = displayBuffer.slice(speed);
+
+        renderChat();
+
+    }, 40); // fréquence (ms)
+}
 //////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////        STREAMING MISTRAL
 //////////////////////////////////////////////////////////////////////
@@ -897,7 +849,7 @@ function sendToAI_php(chatBuffer, origine){
     catch(e) {
       city = actualGeolocDefault;
       console.warn('Echec de la retro-localisation', e);
-      $("#chat").val($("#chat").text() + "\nERREUR: Géolocalisation absente !!!\n" + actualGeolocDefault + " par défaut.");
+      $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!\n" + actualGeolocDefault + " par défaut.");
     }
 
     // évite les reliquats inter-requêtes.
@@ -930,6 +882,7 @@ function sendToAI_php(chatBuffer, origine){
     form.append("origine", JSON.stringify(origine));
     form.append("date", JSON.stringify(Date()));
 
+    let streamBuffer = "";
     xhr.onprogress = ()=>{ // toutes les 50ms
 
         if(assistantFrozen) return;
@@ -938,7 +891,10 @@ function sendToAI_php(chatBuffer, origine){
         let chunk = xhr.responseText.substring(lastSize);
         lastSize = xhr.responseText.length;
 
-        let lines = chunk.split("\n");
+        //let lines = chunk.split("\n");
+        streamBuffer += chunk;
+        let lines = streamBuffer.split("\n");
+        streamBuffer = lines.pop(); // 🔥 garde l’incomplet
 
         for(let l of lines){
 
@@ -960,12 +916,14 @@ function sendToAI_php(chatBuffer, origine){
               ttsBuffer += tok;
 
               // fallback visuel si pas de TTS
-              if(!speakerEnabled){
+//              if(!speakerEnabled) {                          //  CRITIQUE !!!
                 //assistantVisible = assistantPending; // avant
                 // 🔥 toujours garder une source visible // après
-                assistantVisible += tok;   // ⚠️ pas = mais +=
-                renderChat();
-              }
+                //assistantVisible += tok;   // ⚠️ pas = mais +=
+                //renderChat();
+                displayBuffer += tok;
+                scheduleDisplay();
+//              }                                              //       !!!
               //console.log("assistantPending: ", assistantPending);
               //console.log("ttsBuffer: ", ttsBuffer);
               speakChunk();
@@ -1076,6 +1034,33 @@ function sendTextInput(){
   submitUser(text);
 }
 
+/*//////
+function scrollToBottomSmooth() {
+  const chat = $("#chat")[0];
+  chat.scrollTo({
+    top: chat.scrollHeight,
+    behavior: "smooth"
+  });
+}
+
+//////
+function isNearBottom() {
+  const chat = $("#chat")[0];
+  return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
+}
+
+//////
+function appendMessage(text) {
+  const chat = $("#chat");
+  const shouldScroll = isNearBottom();
+
+  chat.val(chat.val() + "\n" + text);
+
+  if (shouldScroll) {
+    scrollToBottom();
+  }
+}*/
+
 // ******************************************************************
 // *********************************************   $ready$  R E A D Y
 $(document).ready(function () {
@@ -1116,14 +1101,8 @@ $(document).ready(function () {
 
 //-----------------------
   $("#trashBtn").on("click", () => {
-    $("#chat").val("");
+    $("#chat").text("");
     chatBuffer = [];
-    if( micEnabled /*&& isAndroid()*/ ){
-      setTimeout(()=>{
-        try{ recognition.start(); }
-        catch(e){ console.log("recog start:", e); }
-      }, 250); // 🔥 indispensable Android
-    }
   });
 
 //----------------------
@@ -1138,22 +1117,6 @@ $("#textInput").on("keydown", function(e){
   }
 });
 $("#textInput").focus();
-
-//--------------------- effet click/touch
-["sendBtn", "cutBtn", "trashBtn"].forEach(id => {
-  const btn = document.getElementById(id);
-
-  // Mobile
-  btn.addEventListener("touchstart", () => btn.classList.add("active"));
-  btn.addEventListener("touchend", () => btn.classList.remove("active"));
-
-  // Souris
-  btn.addEventListener("mousedown", () => btn.classList.add("active"));
-  btn.addEventListener("mouseup", () => btn.classList.remove("active"));
-
-  // Sécurité : si la souris sort du bouton
-  btn.addEventListener("mouseleave", () => btn.classList.remove("active"));
-});
 
 //---------------------
   setTimeout(function() {

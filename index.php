@@ -51,16 +51,10 @@ if (empty($_SESSION['csrf'])) {
     <!--                          chatTrace    ------------------------------>
     <div class="container p-3 d-flex flex-column" style="height: 85vh;">
       <div id="version"></div>
-
-      <textarea id="chat" class="form-control p-3 mb-2 flex-grow-1"></textarea>
+      <textarea id="chat" class="form-control p-3 mb-2 flex-grow-1" readonly></textarea>
       <!---->
       <div class="mt-2 d-flex">
-        <input
-          id="textInput"
-          type="text"
-          class="form-control me-1"
-          placeholder="Écrire un message..."
-        >
+        <input id="textInput" type="text" class="form-control me-1" placeholder="Écrire un message...">
         <button id="sendBtn" class="btn btn-primary">📤</button>
       </div>
       <div class="mt-2 d-flex align-items-center">

@@ -26,18 +26,19 @@ async function fetchCoordinatesData(location) {
     //return obtenirPosition(); // geoloc de l'apareil
 }
 
-//////
-async function fetchWeatherData(url) {
-    //Exemple: `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=Europe/Paris`;
+async function fetchWeatherData(params) {
+  const query = new URLSearchParams(params).toString();
 
-    try {
-        const meteo = await fetch(url);
-        const data = await meteo.json();
-        return data;
-    } catch(e){
-        console.warn("Erreur météo:", e);
-        return null;
+  try {
+    const response = await fetch(`weather.php?${query}`);
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
+    return await response.json();
+    } catch (error) {
+      console.error("Erreur météo :", error);
+      return null;
+  }
 }
 
 ////// question is about meteo ?
@@ -56,14 +57,14 @@ function classifyUserQuestion(text) {
     Voici la date: ${Date()}.
     1. Détermine si cette question concerne la météo (réponds uniquement par "oui" ou "non").
     2. Si oui:
-        - extrais la localisation (ville, région, pays) mentionnée,
-        - détermine si la question porte sur aujourd'hui ou sur une date ultérieure,
-        si non:
-        - utilise ${city} par défaut.
+        - extrais la localisation (ville, région, pays) mentionnée ( utilise ${city} par défaut).
+        - détermine si la question porte sur aujourd'hui ("is_today":"oui") ou sur une date ultérieure ("is_today":"non") et si il est fait mention d'une ou plusieurs heures ou d'une période particulière de la journée ou de la nuit ("is_hourly").
+
     3. Réponds avec un objet JSON strictement formaté comme ceci :
     {
       "is_weather": "oui" ou "non",
       "is_today": "oui" ou "non",
+      "is_hourly": "oui" ou "non",
       "location": "nom de la localisation ou par défaut ${city}",
       "reason": "explication très courte de la décision"
     }
