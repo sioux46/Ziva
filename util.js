@@ -58,7 +58,8 @@ function classifyUserQuestion(text) {
     1. Détermine si cette question concerne la météo (réponds uniquement par "oui" ou "non").
     2. Si oui:
         - extrais la localisation (ville, région, pays) mentionnée ( utilise ${city} par défaut).
-        - détermine si la question porte sur aujourd'hui ("is_today":"oui") ou sur une date ultérieure ("is_today":"non") et si il est fait mention d'une ou plusieurs heures ou d'une période particulière de la journée ou de la nuit ("is_hourly").
+        - Détermine si la question porte sur aujourd'hui ("is_today":"oui") ou sur une date ultérieure ("is_today":"non")
+        - Détermine si il est fait mention d'une ou plusieurs heures ou d'une période particulière de la journée ou de la nuit ("is_hourly":"oui") ou non  ("is_hourly":"non").
 
     3. Réponds avec un objet JSON strictement formaté comme ceci :
     {

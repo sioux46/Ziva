@@ -436,7 +436,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
                 timezone: "Europe/Paris"
               }
             }
-            else if ( classification.is_hourly === "oui") {
+            else if ( classification.is_hourly === "oui" && classification.is_today === "oui" ) {
               url = {
                 latitude: coords.lat,
                 longitude: coords.lon,
@@ -445,7 +445,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
                 timezone: "Europe/Paris"
               }
             }
-            else if ( classification.is_today === "oui") {
+            else if ( classification.is_hourly === "non" && classification.is_today === "oui") {
               url = {
                 latitude: coords.lat,
                 longitude: coords.lon,
@@ -453,7 +453,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
                 timezone: "Europe/Paris"
               }
             }
-            else {
+            else { // classification.is_hourly === "non" && classification.is_today === "non"
               url = {
                 latitude: coords.lat,
                 longitude: coords.lon,
