@@ -421,7 +421,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         // ===============================
         if (classification.is_weather === "oui") {
             console.log( "is_hourly: ", classification.is_hourly);
-            console.log( "is_today: ", classification.is_his_today);
+            console.log( "is_today: ", classification.is_today);
             let wData = "";
             let weather = "";
             const coords = await fetchCoordinatesData(classification.location);
