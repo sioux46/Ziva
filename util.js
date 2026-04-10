@@ -52,27 +52,29 @@ function classifyUserQuestion(text) {
       $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!\n" + actualGeolocDefault + " par défaut.");
     }
 
-  const classificationPrompt =  `
-  L'utilisateur a dit : "${text}".
-  Voici la date : ${new Date()}.
+    const classificationPrompt =  `
+    L'utilisateur a dit : "${text}".
+    Voici la date : ${new Date()}.
 
-  - Si cette question concerne la météo, répondre "is_weather": "oui".
-    sinon: répondre "is_weather": "non".
-  - extrais la localisation (ville, région, pays) mentionnée ( utilise ${city} par défaut).
-  - Détermine si la question porte sur aujourd'hui ("is_today":"oui") ou sur une date ultérieure ("is_today":"non")
-  - Détermine si il est fait mention d'une ou plusieurs heures ou d'une période particulière de la journée ou de la nuit ("is_hourly":"oui") ou non  ("is_hourly":"non").
+    - Si cette question concerne la météo, répondre "is_weather": "oui".
+      sinon: répondre "is_weather": "non".
+    - extrais la localisation (ville, région, pays) mentionnée ( utilise ${city} par défaut).
+    - Détermine si la question porte sur aujourd'hui ("is_today":"oui") ou sur une date ultérieure ("is_today":"non")
+    - Détermine si il est fait mention d'une ou plusieurs heures ou d'une période particulière de la journée ou de la nuit ("is_hourly":"oui") ou non  ("is_hourly":"non").
 
-  3. Réponds UNIQUEMENT avec du JSON valide.
-  NE METS AUCUN TEXTE AUTOUR.` + " PAS DE ```. Pas de format Markdown. " +
-  `Formater comme ceci:
-  {
-  "is_weather": "oui" ou "non",
-  "is_today": "oui" ou "non",
-  "is_hourly": "oui" ou "non",
-  "location": "nom de la localisation ou par défaut ${city}",
-  "reason": "explication très courte de la décision"
-  }
-  `
+    3. Réponds UNIQUEMENT avec du JSON valide.
+    NE METS AUCUN TEXTE AUTOUR.` + " PAS DE ``` au début et à la fin. " +
+    `Formater comme ceci:
+    {
+    "is_weather": "oui" ou "non",
+    "is_today": "oui" ou "non",
+    "is_hourly": "oui" ou "non",
+    "location": "nom de la localisation ou par défaut ${city}",
+    "reason": "explication très courte de la décision"
+    }
+    `
+    // Pas de format Markdown. ???
+
     const classificationChatBuffer = structuredClone(chatBuffer);
     classificationChatBuffer.push({ role: "user", content: classificationPrompt });
 
@@ -86,30 +88,9 @@ function classifyUserQuestion(text) {
             },
             success: function(response) {
               try {
-                  /*// 1. Décoder la réponse (si elle est une chaîne JSON échappée)
-                  let decodedResponse;
-                  try {
-                      decodedResponse = typeof response === "string" ? JSON.parse(response) : response;
-                      resolve(decodedResponse);   // ???
-                  } catch (e) {
-                      // Si ce n'est pas un JSON valide, utiliser la réponse brute
-                      decodedResponse = response;
-                      resolve(decodedResponse);   // ???
-                  }*/
-                  console.log(response);
+                  console.log("response: ", response);
                   let decodedResponse = JSON.parse(response);
                   resolve(decodedResponse);
-                  // 2. Extraire le contenu JSON depuis le format Markdown
-                  //const jsonMatch = decodedResponse.match(/```json\n([\s\S]*?)\n```/);
-                  /*const jsonMatch = decodedResponse.match(/```json\s*([\s\S]*?)\s*```/);
-                  if (!jsonMatch || jsonMatch.length < 2) {
-                      throw new Error("Format de réponse inattendu (bloc JSON non trouvé)");
-                  }
-                  const jsonStr = jsonMatch[1].trim();
-
-                  // 3. Parser le JSON extrait
-                  const classification = JSON.parse(jsonStr);
-                  resolve(classification);*/
               } catch (e) {
                   console.warn("Erreur de parsing :", e, response);
                   reject(e);

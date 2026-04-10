@@ -22,7 +22,7 @@ if (preg_match('/https?:\/\//i', $queryString)) {
 $cacheKey = md5($queryString);
 $cacheDir = __DIR__ . "/cache";
 $cacheFile = $cacheDir . "/$cacheKey.json";
-$cacheTime = 1800; // 30 minutes
+$cacheTime = 600; // 10 minutes
 
 // Créer dossier cache si besoin
 if (!is_dir($cacheDir)) {

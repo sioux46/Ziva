@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.04.09.2";
+var zivaVersion = "v6.04.10.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
@@ -429,11 +429,18 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
             let url = "";
 
             if ( classification.is_hourly === "oui" && classification.is_today === "non" ) {
-              url = {
+              /*url = {
                 latitude: coords.lat,
                 longitude: coords.lon,
                 hourly: "weather_code,temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m",
                 forecast_hours: 16,
+                timezone: "Europe/Paris"
+              }*/
+              url = { // même que is_hourly === "non"
+                latitude: coords.lat,
+                longitude: coords.lon,
+                daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum",
+                forecast_days: 16,
                 timezone: "Europe/Paris"
               }
             }
@@ -468,8 +475,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
 
             if ( classification.is_hourly === "oui" && classification.is_today === "non" ) {
-              console.log( "is_hourly: OUI, is_today: NON");
-              wData = weatherData.hourly;
+              /*wData = weatherData.hourly;
               weather = {
                         "weather_code": wData.weather_code,
                         "temperature": wData.temperature_2m,
@@ -478,10 +484,17 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
                         "time": wData.time,
                         "wind_speed": wData.wind_speed_10m,
                         "wind_direction": wData.wind_direction_10m
+              }*/
+              wData = weatherData.daily;
+              weather = {
+                        "weather_code": wData.weather_code,
+                        "temperature_max": wData.temperature_2m_max,
+                        "temperature_min": wData.temperature_2m_min,
+                        "precipitation_sum": wData.precipitation_sum,
+                        "time": wData.time
               }
             }
             else if ( classification.is_hourly === "oui") {
-              console.log( "is_hourly: OUI");
               wData = weatherData.hourly;
               weather = {
                         "weather_code": wData.weather_code,
@@ -494,7 +507,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               }
             }
             else if ( classification.is_today === "oui") {
-              console.log( "is_today: OUI");
               wData = weatherData.current_weather;
               weather = {
                         "weather": getWeatherDescription(wData.is_day),
@@ -504,7 +516,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               };
             }
             else {
-              console.log( "is_today: NON");
               wData = weatherData.daily;
               weather = {
                         "weather_code": wData.weather_code,
@@ -516,6 +527,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
             }
 
             // Date du jour: ${Date()}.
+            console.log("weather: ", weather);
             const weatherPrompt = `
               Date du jour: ${Date()}.
               Voici les données météo en JSON :
@@ -544,7 +556,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
                 content: weatherPrompt
             });
 
-            micEnabled = true;
+            if ( $("#micBtn").hasClass("btn-danger") ) micEnabled = true;
             sendToAI_php(newBuffer, "sysM");
         }
 
@@ -558,7 +570,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
             //else text = "--> " + text;
 
             addUser(text);
-            micEnabled = true;
+            if ( $("#micBtn").hasClass("btn-danger") ) micEnabled = true;
             sendToAI_php(chatBuffer, "userM");
         }
 
@@ -570,7 +582,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         //else text = "--> " + text;
 
         addUser(text);
-        micEnabled = true;
+        if ( $("#micBtn").hasClass("btn-danger") ) micEnabled = true;
         sendToAI_php(chatBuffer, "userM");
     }
 }
@@ -898,7 +910,7 @@ function sendToAI_php(chatBuffer, origine){
     catch(e) {
       city = actualGeolocDefault;
       console.warn('Echec de la retro-localisation', e);
-      $("#chat").val($("#chat").text() + "\nERREUR: Géolocalisation absente !!!\n" + actualGeolocDefault + " par défaut.");
+      $("#chat").val($("#chat").val() + "\nERREUR: Géolocalisation absente !!!\n" + actualGeolocDefault + " par défaut.");
     }
 
     // évite les reliquats inter-requêtes.

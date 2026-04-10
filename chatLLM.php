@@ -4,6 +4,9 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+ini_set('session.gc_maxlifetime', 14400);
+ini_set('session.cookie_lifetime', 14400);
+
 session_start();
 require_once("sysMesDeva.php");
 
@@ -19,8 +22,7 @@ if (!isset($_SESSION['initiated'])) {
    1. CORS strict
 ───────────────────────────────────────────── */
 $allowedOrigins = [
-    "https://www.siouxlog.fr",
-    "http://localhost:8888"
+    "https://www.siouxlog.fr"
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';

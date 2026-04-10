@@ -2,6 +2,10 @@
 //declare(strict_types=1);
 error_reporting(E_ALL);
 ini_set("display_errors", 1);
+ini_set('display_startup_errors', 1);
+
+ini_set('session.gc_maxlifetime', 14400);
+ini_set('session.cookie_lifetime', 14400);
 
 session_start();
 
@@ -17,8 +21,7 @@ if (!isset($_SESSION['initiated'])) {
    1. CORS strict
 ───────────────────────────────────────────── */
 $allowedOrigins = [
-    "https://www.siouxlog.fr",
-    "http://localhost:8888"
+    "https://www.siouxlog.fr"
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -132,7 +135,7 @@ else  $temperature = 0.7;*/
    9. API payload
 ───────────────────────────────────────────── */
 $data = [
-    "model" => "mistral-small-latest", // large medium small
+    "model" => "mistral-large-latest", // large medium small
     "messages" => $messages,
     "max_tokens" => 1000,
     "temperature" => 0.1 // $temperature
@@ -166,7 +169,6 @@ $reply = $out['choices'][0]['message']['content'] ?? '';
 
 echo $reply;
 
-//echo json_encode($reply, JSON_THROW_ON_ERROR);
 
 /*echo json_encode([
     "reply" => $reply
