@@ -428,30 +428,106 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
             let url = "";
 
-            url = {
-              latitude: coords.lat,
-              longitude: coords.lon,
-              hourly: "weather_code,temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m",
-              start_date: classification.start_date,
-              end_date: classification.end_date,
-              timezone: "Europe/Paris"
+            if ( classification.is_hourly === "oui" && classification.is_today === "non" ) {
+              /*url = {
+                latitude: coords.lat,
+                longitude: coords.lon,
+                hourly: "weather_code,temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m",
+                forecast_hours: 16,
+                timezone: "Europe/Paris"
+              }*/
+              url = { // même que is_hourly === "non"
+                latitude: coords.lat,
+                longitude: coords.lon,
+                daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum",
+                forecast_days: 16,
+                timezone: "Europe/Paris"
+              }
+            }
+            else if ( classification.is_hourly === "oui" && classification.is_today === "oui" ) {
+              url = {
+                latitude: coords.lat,
+                longitude: coords.lon,
+                hourly: "weather_code,temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m",
+                forecast_hours: 16,
+                timezone: "Europe/Paris"
+              }
+            }
+            else if ( classification.is_hourly === "non" && classification.is_today === "oui") {
+              url = {
+                latitude: coords.lat,
+                longitude: coords.lon,
+                current_weather: true,
+                timezone: "Europe/Paris"
+              }
+            }
+            else { // classification.is_hourly === "non" && classification.is_today === "non"
+              url = {
+                latitude: coords.lat,
+                longitude: coords.lon,
+                daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum",
+                forecast_days: 16,
+                timezone: "Europe/Paris"
+              }
             }
 
             const weatherData = await fetchWeatherData(url);
-            wData = weatherData.hourly;
 
-            weather = {
-                      "weather_code": wData.weather_code,
-                      "temperature": wData.temperature_2m,
-                      "apparent_temperature": wData.apparent_temperature,
-                      "precipitation": wData.precipitation,
-                      "windspeed": wData.windspeed_10m,
-                      "winddirection": wData.winddirection_10m,
-                      "time": wData.time
+
+            if ( classification.is_hourly === "oui" && classification.is_today === "non" ) {
+              /*wData = weatherData.hourly;
+              weather = {
+                        "weather_code": wData.weather_code,
+                        "temperature": wData.temperature_2m,
+                        "apparent_temperature": wData.apparent_temperature,
+                        "precipitation": wData.precipitation,
+                        "time": wData.time,
+                        "wind_speed": wData.wind_speed_10m,
+                        "wind_direction": wData.wind_direction_10m
+              }*/
+              wData = weatherData.daily;
+              weather = {
+                        "weather_code": wData.weather_code,
+                        "temperature_max": wData.temperature_2m_max,
+                        "temperature_min": wData.temperature_2m_min,
+                        "precipitation_sum": wData.precipitation_sum,
+                        "time": wData.time
+              }
+            }
+            else if ( classification.is_hourly === "oui") {
+              wData = weatherData.hourly;
+              weather = {
+                        "weather_code": wData.weather_code,
+                        "temperature": wData.temperature_2m,
+                        "apparent_temperature": wData.apparent_temperature,
+                        "precipitation": wData.precipitation,
+                        "time": wData.time,
+                        "wind_speed": wData.wind_speed_10m,
+                        "wind_direction": wData.wind_direction_10m
+              }
+            }
+            else if ( classification.is_today === "oui") {
+              wData = weatherData.current_weather;
+              weather = {
+                        "weather": getWeatherDescription(wData.is_day),
+                        "temperature": wData.temperature,
+                        "winddirection": wData.winddirection,
+                        "windspeed": wData.windspeed,
+              };
+            }
+            else {
+              wData = weatherData.daily;
+              weather = {
+                        "weather_code": wData.weather_code,
+                        "temperature_max": wData.temperature_2m_max,
+                        "temperature_min": wData.temperature_2m_min,
+                        "precipitation_sum": wData.precipitation_sum,
+                        "time": wData.time
+              }
             }
 
+            // Date du jour: ${Date()}.
             console.log("weatherData: ", weatherData);
-            console.log("weather: ", weather);
             const weatherPrompt = `
               Date du jour: ${Date()}.
               Voici les données météo en JSON :
@@ -466,7 +542,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               - Ne pas dire "max" mais maximum.
               - Ne pas dire "de 6 degrés minimum à 10 degrés maximum" mais "de 6 degrés à 10 degrés".
               - Pour la direction du vent, ne pas donner les degrés mais les points cardinaux.
-              - Ne pas parler du temps qu'il a fait avant l'heure actuelle.
             `;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;

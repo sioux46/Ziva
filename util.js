@@ -55,21 +55,23 @@ function classifyUserQuestion(text) {
     const classificationPrompt =  `
     L'utilisateur a dit : "${text}".
     Voici la date : ${new Date()}.
-
+    1.
     - Si cette question concerne la météo, répondre "is_weather": "oui".
       sinon: répondre "is_weather": "non".
     - extrais la localisation (ville, région, pays) mentionnée ( utilise ${city} par défaut).
     - Détermine si la question porte sur aujourd'hui ("is_today":"oui") ou sur une date ultérieure ("is_today":"non")
-    - Détermine si il est fait mention d'une ou plusieurs heures ou d'une période particulière de la journée ou de la nuit ("is_hourly":"oui") ou non  ("is_hourly":"non").
+    - Détermine la date de départ ("start_date") et la date de fin ("end_date").
 
-    3. Réponds UNIQUEMENT avec du JSON valide.
-    NE METS AUCUN TEXTE AUTOUR.` + " PAS DE ``` au début et à la fin. " +
+    2.
+    - Réponds UNIQUEMENT avec du JSON valide.
+    - NE METS AUCUN TEXTE AUTOUR.` + " PAS DE ``` au début et à la fin. " +
     `Formater comme ceci:
     {
     "is_weather": "oui" ou "non",
     "is_today": "oui" ou "non",
-    "is_hourly": "oui" ou "non",
     "location": "nom de la localisation ou par défaut ${city}",
+    "start_date": "<année>-<mois>-<jour>" (exemple: "2026-04-12"),
+    "end_date": "<année>-<mois>-<jour>" (exemple: "2026-04-14"),
     "reason": "explication très courte de la décision"
     }
     `
