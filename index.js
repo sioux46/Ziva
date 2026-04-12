@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.04.11.2";
+var zivaVersion = "v6.04.12.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 15;
@@ -16,6 +16,10 @@ let actualGeoLoc;
 // une minute de silence
 let lastSpeechTime = Date.now();
 let silenceWatcher = null;
+
+// n minutes restart
+let restartWatcher = null;
+let lastRestartTime = Date.now();
 
 // états IA
 let aiStreaming = false;
@@ -41,7 +45,6 @@ let lastTTSEnd = 0;
 // réseau
 let xhrLLM = null;
 
-let micEnabled = false;
 let speakerEnabled = false;
 
 // iOS
@@ -399,7 +402,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
     if (aiBusy) return;
     aiBusy = true;
-    micEnabled = false;
 
     text = text.trim().replace(/\s+/g, " "); // bonus filtre écho
 
@@ -481,7 +483,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
                 content: weatherPrompt
             });
 
-            if ( $("#micBtn").hasClass("btn-danger") ) micEnabled = true;
             sendToAI_php(newBuffer, "sysM");
         }
 
@@ -495,7 +496,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
             //else text = "--> " + text;
 
             addUser(text);
-            if ( $("#micBtn").hasClass("btn-danger") ) micEnabled = true;
             sendToAI_php(chatBuffer, "userM");
         }
 
@@ -507,7 +507,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         //else text = "--> " + text;
 
         addUser(text);
-        if ( $("#micBtn").hasClass("btn-danger") ) micEnabled = true;
         sendToAI_php(chatBuffer, "userM");
     }
 }
@@ -731,6 +730,10 @@ function commitAssistant(text){
         role: "assistant",
         content: clean
     });
+
+    lastRestartTime = Date.now();
+    startRestartWatcher();
+
 
     assistantMessageCommitted = true;
     assistantPending = "";
@@ -983,6 +986,23 @@ function startSilenceWatcher(){ // couper le mic après 1mn de silence
 }
 
 //////
+function startRestartWatcher(){ // couper le mic après 1mn de silence
+
+    if(restartWatcher) clearInterval(restartWatcher);
+    restartWatcher = setInterval( () => {
+        const silence = Date.now() - lastRestartTime;
+        if(silence > 1200000){   //  20 minutes
+            clearInterval(restartWatcher);
+            restartWatcher = null;
+
+            const loc = window.location.href;
+            window.location.href = loc;
+        }
+
+    }, 1000);
+}
+
+//////
 function isAndroid() {
     const userAgent = navigator.userAgent || navigator.vendor || window.opera;
     return /android/i.test(userAgent);
@@ -1021,6 +1041,8 @@ $(document).ready(function () {
   $("#version").text(zivaVersion);
 
   //////////////////////////////      micro
+  //if ( $("#micBtn").hasClass("btn-danger") ) micEnabled = true;
+
   $("#micBtn").on("click", () => {
     unlockIOSAudio();
     micEnabled = !micEnabled;
@@ -1047,7 +1069,6 @@ $(document).ready(function () {
 
 //-----------------------
   $("#cutBtn").on("click", () => {
-    //aiWasInterrupted = false;
     buttonInterruptAI = true;
     interruptAI();
   });
