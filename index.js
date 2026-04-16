@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.04.15.2";
+var zivaVersion = "v6.04.15.4";
 
 let chatBuffer = [];
 let maxChatBuffer = 11;
@@ -67,7 +67,8 @@ else recognition.interimResults = true;
 //----------------------------------------------  ONSTART
 // suivre l’état réel du micro
 recognition.onstart = ()=> {
-  if (!micEnabled || !document.hasFocus() ) return;
+  if ( !document.hasFocus() ) return;
+  if (!micEnabled) return;
   if ( aiSpeaking && isNotApple() ) return; // barge in interdit
   recognitionRunning = true;
 };
@@ -78,6 +79,8 @@ recognition.onend = ()=>{
 
     recognitionRunning = false;
     lastTTSEnd = Date.now();
+
+    if ( !document.hasFocus() ) return;
 
     // 🔥 SEMI-DUPLEX : ne PAS redémarrer si IA parle
     if(isNotApple() && aiSpeaking){
@@ -97,6 +100,8 @@ recognition.onresult = e => {
   let finalText = "";
   let interimText = "";
   let transcript = "";
+
+  if ( !document.hasFocus() ) return;
 
   //console.log("RESULT RAW:", e.results);
   for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -139,7 +144,7 @@ recognition.onresult = e => {
   }
 
     // 🚫 SEMI-DUPLEX : pas de barge-in micro sur non-Apple
-  if(isNotApple() && aiSpeaking && !buttonInterruptAI){
+  if(isNotApple() && aiSpeaking){
       return;
   }
 
@@ -408,7 +413,8 @@ function isInternalLeak(text){
 
 /////////////////////////////////////////
 function restartMicSafe(){
-    if(!micEnabled || !document.hasFocus() ) return;
+    if ( !document.hasFocus() ) return;
+    if( !micEnabled  ) return;
 
     setTimeout(()=>{
         try{ recognition.start(); }
