@@ -137,7 +137,7 @@ else  $temperature = 0.7;*/
 $data = [
     "model" => "mistral-small-latest", // large medium small
     "messages" => $messages,
-    "max_tokens" => 60,
+    "max_tokens" => 70,
     "temperature" => 0.1 // $temperature
 ];
 

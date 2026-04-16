@@ -67,7 +67,7 @@ else recognition.interimResults = true;
 //----------------------------------------------  ONSTART
 // suivre l’état réel du micro
 recognition.onstart = ()=> {
-  if (!micEnabled) return;
+  if (!micEnabled || !document.hasFocus() ) return;
   if ( aiSpeaking && isNotApple() ) return; // barge in interdit
   recognitionRunning = true;
 };
@@ -307,7 +307,7 @@ function playTTS(){
         aiSpeaking = true;
 
         // 🔥 SEMI-DUPLEX
-        if(isNotApple() && micEnabled){
+        if(isNotApple() && micEnabled  && document.hasFocus() ){
             try{
                 recognition.abort(); // mieux que stop
             }catch(e){}
@@ -327,7 +327,7 @@ function playTTS(){
         lastTTSEnd = Date.now();
 
         // réactivation micro
-        if(isNotApple() && micEnabled){
+        if( isNotApple() && micEnabled  && document.hasFocus() ){
             setTimeout(()=>{
                 try{ recognition.start(); }
                 catch(e){}
@@ -408,7 +408,7 @@ function isInternalLeak(text){
 
 /////////////////////////////////////////
 function restartMicSafe(){
-    if(!micEnabled) return;
+    if(!micEnabled || !document.hasFocus() ) return;
 
     setTimeout(()=>{
         try{ recognition.start(); }

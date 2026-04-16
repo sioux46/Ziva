@@ -62,8 +62,9 @@ L'utilisateur vient de dire : "${text}".
 - extraire la localisation (ville, région, pays) mentionnée ( utiliser ${loc} par défaut).
 - Déterminer la date de départ ("start_date") et la date de fin ("end_date").
 2.
+- Si l'utilisateur indique sa satisfaction ("merci", "Entendu", "c'est bon", "j'ai compris", etc.), répondre "is_weather": "non".
 - Si la question concerne la météo, répondre "is_weather": "oui".
-  Sinon répondre "is_weather": "non".
+- Dans tout autre cas, répondre "is_weather": "non".
 -3.
 - Réponds TOUJOURS ET UNIQUEMENT avec du JSON valide formater comme ceci:
 {
