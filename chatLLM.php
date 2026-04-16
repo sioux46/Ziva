@@ -85,6 +85,7 @@ if (time() - $rate["t"] > 60) {
 $rate["c"]++;
 file_put_contents($rateFile, json_encode($rate), LOCK_EX);
 
+
 if ($rate["c"] > 30) {
     http_response_code(429);
     echo json_encode(["error" => "Rate limit exceeded"]);
@@ -148,6 +149,7 @@ $sysMes = sysMessages(
     json_decode($_POST['localisation'],true),
     json_decode($_POST['origine'],true)
 );
+$origine = json_decode($_POST['origine'],true);
 
 
 // inject system messages au début
@@ -167,13 +169,13 @@ else  $temperature = 0.7;*/
 /* ─────────────────────────────────────────────
    9. API payload
 ───────────────────────────────────────────── */
-if ( $origine == "sysM" ) $model = "mistral-small-latest"; // large medium small
+if ( $origine == "sysM" ) $model = "mistral-large-latest"; // large medium small
 else $model = "mistral-large-latest";
 $data = [
     "model" => $model,
     "messages" => $messages,
     "stream" => true,
-    "max_tokens" => 1000, // 1000
+    "max_tokens" => 600, // 1000
     "temperature" => 0.7, // $temperature
 ];
 

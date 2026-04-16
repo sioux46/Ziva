@@ -41,46 +41,127 @@ async function fetchWeatherData(params) {
   }
 }
 
+//////////////////////////////////
+let debounceTimer = null;
+let isLoading = false;
 ////// question is about meteo ?
 function classifyUserQuestion(text) {
 
-    let city;
-    try { city = actualGeoLoc.city }
+    let loc;
+    try { loc = actualGeoLoc.city }
     catch(e) {
-      city = actualGeolocDefault;
-      console.warn('Echec de la retro-localisation', e);
+      loc = actualGeolocDefault;
+      //console.warn('Echec de la retro-localisation', e);
       $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!\n" + actualGeolocDefault + " par défaut.");
     }
 
     const classificationPrompt =  `
-    L'utilisateur a dit : "${text}".
-    Voici la date : ${new Date()}.
-    1.
-    - Si cette question concerne la météo, répondre "is_weather": "oui".
-      sinon: répondre "is_weather": "non".
-    - extrais la localisation (ville, région, pays) mentionnée ( utilise ${city} par défaut).
-    - Détermine si la question porte sur aujourd'hui ("is_today":"oui") ou sur une date ultérieure ("is_today":"non")
-    - Détermine la date de départ ("start_date") et la date de fin ("end_date").
-
-    2.
-    - Réponds UNIQUEMENT avec du JSON valide.
-    - NE METS AUCUN TEXTE AUTOUR.` + " PAS DE ``` au début et à la fin. " +
-    `Formater comme ceci:
-    {
-    "is_weather": "oui" ou "non",
-    "is_today": "oui" ou "non",
-    "location": "nom de la localisation ou par défaut ${city}",
-    "start_date": "<année>-<mois>-<jour>" (exemple: "2026-04-12"),
-    "end_date": "<année>-<mois>-<jour>" (exemple: "2026-04-14"),
+Voici la date : ${new Date()}.
+L'utilisateur vient de dire : "${text}".
+1.
+- extraire la localisation (ville, région, pays) mentionnée ( utiliser ${loc} par défaut).
+- Déterminer la date de départ ("start_date") et la date de fin ("end_date").
+2.
+- Si la question concerne la météo, répondre "is_weather": "oui".
+  Sinon répondre "is_weather": "non".
+-3.
+- Réponds TOUJOURS ET UNIQUEMENT avec du JSON valide formater comme ceci:
+{
+"is_weather": "oui" ou "non",
+"location": "nom de la localisation ou par défaut ${loc}",
+"start_date": "<année>-<mois>-<jour>" (exemple: "2026-04-12"),
+"end_date": "<année>-<mois>-<jour>" (exemple: "2026-04-14")
+}
+- Ne rien ajouter après le json.
+`
+    /*
     "reason": "explication très courte de la décision"
-    }
-    `
+
+        1.
+        L'utilisateur vient de dire : "${text}".
+        - Si l'utilisateur indique sa satisfaction ("merci", "Entendu", "c'est bon", "j'ai compris", etc.), répondre "is_weather": "non".
+        - Si sa question concerne la météo, répondre "is_weather": "oui".
+          sinon: répondre "is_weather": "non".
+        - extrais la localisation (ville, région, pays) mentionnée ( utilise ${loc} par défaut).
+        - Détermine la date de départ ("start_date") et la date de fin ("end_date").
+        - Ignorer tous les autre sujets évoqués par l'utilisateur.
+        2.
+        - Réponds TOUJOURS ET UNIQUEMENT avec du JSON valide formater comme ceci:
+        {
+        "is_weather": "oui" ou "non",
+        "location": "nom de la localisation ou par défaut ${loc}",
+        "start_date": "<année>-<mois>-<jour>" (exemple: "2026-04-12"),
+        "end_date": "<année>-<mois>-<jour>" (exemple: "2026-04-14"),
+        "reason": "explication très courte de la décision"
+        }
+        - Ne rien ajouter après le json.*/
+
     // Pas de format Markdown. ???
+    //     - NE METS AUCUN TEXTE AUTOUR.` + " PAS DE '```json' au début et pas de '```' à la fin. " +
+
 
     const classificationChatBuffer = structuredClone(chatBuffer);
-    classificationChatBuffer.push({ role: "user", content: classificationPrompt });
+    classificationChatBuffer.push({ role: "user", content: text });
+    classificationChatBuffer.push({ role: "system", content: classificationPrompt });
+
 
     return new Promise((resolve, reject) => {
+        // 🔥 DEBOUNCE (500ms)
+        clearTimeout(debounceTimer);
+
+        debounceTimer = setTimeout(() => {
+
+            // 🔒 BLOQUE requêtes concurrentes
+            if (isLoading) {
+                console.warn("Requête ignorée (déjà en cours)");
+                return;
+            }
+
+            isLoading = true;
+
+            $.ajax({
+                url: "chatLLM2.php",
+                method: "POST",
+                data: {
+                    chatBuffer: JSON.stringify(classificationChatBuffer),
+                    csrf: document.querySelector('meta[name="csrf-token"]').content
+                },
+
+                success: function(response) {
+                  let decodedResponse;
+                  try {
+                      decodedResponse = JSON.parse(response);
+                      isLoading = false;
+                      console.log("decodedResponse: ", decodedResponse);
+                      resolve(decodedResponse);
+                  } catch (e) {
+                      //console.log("badJsonResponse: ", response);
+                      if ( response == "" ) {
+                        decodedResponse = {"is_weather":"non"};
+                        console.warn("------------->>>>  RESPONSE VIDE !!! <<<<-------");
+                      }
+                      else {
+                        decodedResponse = response.match(/\{[\s\S]*\}/)[0];
+                        console.log("decodedResponse: ", decodedResponse);
+                        decodedResponse = JSON.parse(decodedResponse);
+                      }
+                      isLoading = false;
+                      resolve(decodedResponse);
+                  }
+                },
+                error: function(xhr, status, error) {
+                    console.warn("Erreur AJAX :", error);
+                    const loc = window.location.href;
+                    window.location.href = loc;
+                    isLoading = false;
+                    reject(error);
+                }
+            });
+
+        }, 500); // ⏱️ debounce delay
+    });}
+
+    /*return new Promise((resolve, reject) => {
         $.ajax({
             url: "chatLLM2.php",
             method: "POST",
@@ -89,22 +170,39 @@ function classifyUserQuestion(text) {
                 csrf: document.querySelector('meta[name="csrf-token"]').content
             },
             success: function(response) {
+              let decodedResponse;
               try {
                   console.log("response: ", response);
-                  let decodedResponse = JSON.parse(response);
+                  decodedResponse = JSON.parse(response);
+                  isLoading = false;
                   resolve(decodedResponse);
               } catch (e) {
-                  console.warn("Erreur de parsing :", e, response);
-                  reject(e);
+                  //console.log("badJsonResponse: ", response);
+                  if ( response == "" ) {
+                    decodedResponse = {"is_weather":"non"};
+                    console.warn("------------->>>>  RESPONSE VIDE !!! <<<<-------");
+                  }
+                  else {
+                    decodedResponse = response.match(/\{[\s\S]*\}/)[0];
+                    console.log("decodedResponse: ", decodedResponse);
+                    decodedResponse = JSON.parse(decodedResponse);
+                  }
+                  isLoading = false;
+                  resolve(decodedResponse);
               }
             },
             error: function(xhr, status, error) {
                 console.warn("Erreur AJAX :", error);
+                const loc = window.location.href;
+                window.location.href = loc;
+                isLoading = false;
                 reject(error);
             }
         });
-    });
-}
+    });*/
+
+
+
 
 //////
 // Fonction pour convertir le code WMO en description textuelle
@@ -191,7 +289,7 @@ fetch(url)
     testGeoCount++;
   })
   .catch(error => {
-    console.warn('Echec de la retro-localisation', error);
+    //console.warn('Echec de la retro-localisation', error);
     $("#chat").text($("#chat").text() + "\nERREUR: Géolocalisation absente !!!");
   });
 }

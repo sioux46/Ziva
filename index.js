@@ -4,13 +4,13 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.04.12.1";
+var zivaVersion = "v6.04.15.2";
 
 let chatBuffer = [];
-let maxChatBuffer = 15;
+let maxChatBuffer = 11;
 let buttonInterruptAI = false;
 
-let actualGeolocDefault = "Paris";
+let actualGeolocDefault = "Paris"; // "France";
 let actualGeoLoc;
 
 // une minute de silence
@@ -45,6 +45,7 @@ let lastTTSEnd = 0;
 // réseau
 let xhrLLM = null;
 
+let micEnabled = false;
 let speakerEnabled = false;
 
 // iOS
@@ -60,27 +61,31 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const recognition = new SpeechRecognition();
 recognition.lang = "fr-FR";
 recognition.continuous = true;
-recognition.interimResults = true;
+if ( isNotApple() ) recognition.interimResults = false;
+else recognition.interimResults = true;
 
 //----------------------------------------------  ONSTART
 // suivre l’état réel du micro
 recognition.onstart = ()=> {
   if (!micEnabled) return;
-  //if ( aiSpeaking && isNotApple() ) return; // barge in interdit
+  if ( aiSpeaking && isNotApple() ) return; // barge in interdit
   recognitionRunning = true;
 };
 
 //------------------------------------------------ ONEND
 // Chrome coupe parfois le micro en mode continu.
 recognition.onend = ()=>{
+
     recognitionRunning = false;
     lastTTSEnd = Date.now();
-    //if ( aiSpeaking && isNotApple() ) return; // barge in interdit
-    if( micEnabled /*&& isAndroid()*/ ){
-      setTimeout(()=>{
-        try{ recognition.start(); }
-        catch(e){ console.log("recog start:", e); }
-      }, 250); // 🔥 indispensable Android
+
+    // 🔥 SEMI-DUPLEX : ne PAS redémarrer si IA parle
+    if(isNotApple() && aiSpeaking){
+        return;
+    }
+
+    if (micEnabled) {
+        restartMicSafe(); // ← ton helper est parfait
     }
 };
 
@@ -91,16 +96,28 @@ recognition.onresult = e => {
 
   let finalText = "";
   let interimText = "";
+  let transcript = "";
 
+  //console.log("RESULT RAW:", e.results);
   for (let i = e.resultIndex; i < e.results.length; i++) {
-      const transcript = e.results[i][0].transcript;
-
+      /*console.log("res", i, {
+          transcript: e.results[i][0].transcript,
+          isFinal: e.results[i].isFinal
+      });*/
+      transcript = e.results[i][0].transcript;
       if(e.results[i].isFinal){
           finalText += transcript;
       }
       else{
-          interimText += transcript;
+          if ( isApple() ) interimText += transcript;
       }
+  }
+
+  if ( isNotApple() ) {
+      if(finalText.trim()){
+          submitUser(finalText);
+      }
+      return;
   }
 
   // 🔥 texte utilisé pour barge-in immédiat
@@ -121,22 +138,13 @@ recognition.onresult = e => {
       return;
   }
 
+    // 🚫 SEMI-DUPLEX : pas de barge-in micro sur non-Apple
+  if(isNotApple() && aiSpeaking && !buttonInterruptAI){
+      return;
+  }
+
   // barge-in ultra rapide
-
   if((aiSpeaking || aiStreaming) && micEnabled){
-
-    /*if ( isNotApple ) {
-      ////---> DEBUT essai PC. a virer peut-être
-      // 🔥 ignore interim trop court (bruit)
-      if(!finalText && interimText.length < 6) return;
-
-      // 🔥 filtre echo sur bargeText (pas finalText)
-      if(looksLikeEcho(bargeText)) return;
-      ////---> FIN essai PC. a virer peut-être
-    }*/
-
-    //console.log("interimText: ", interimText);
-    //console.log("finalText: ", finalText);
 
     interruptAI();
 
@@ -149,18 +157,15 @@ recognition.onresult = e => {
             console.warn("🚫 echo live bloqué (barge-in) finalText: ", finalText);
             return;
         }
-        submitUser(finalText);
+        if(finalText.trim()){
+            submitUser(finalText);
+        }
       }
-    }, 40);
+    }, 40); // 40
     return;
   }
 
-  if(finalText){
-    /*// 🔥 GARDE anti fuites
-    if(looksLikeEcho(finalText)){
-        console.warn("🚫 echo live bloqué finalText: ", finalText);
-        return;
-    }*/
+  if(finalText.trim()){
       submitUser(finalText);
   }
 };
@@ -175,11 +180,23 @@ recognition.onerror= ()=> recognitionRunning = false;
 // STOP GLOBAL barge-in  //////////    i n t e r r u p t AI
 function interruptAI(){
 
+    const isBtn = buttonInterruptAI === true;
+
+    // reset immédiat du flag bouton
     if ( buttonInterruptAI ) {
       buttonInterruptAI = false;
     }
-    else if ( isNotApple() ) {
-      //return; // barge-in interdit pour Android & Windows
+
+    // 🤖 ANDROID : filtrage
+    if(isNotApple() && !isBtn){ // isAndroid()
+
+        console.log("⛔ Android-Windows: blocage interruption micro");
+        return; // ❌ STOP ici → pas de vraie interruption
+    }
+
+    // 🔥 relancer micro si besoin
+    if(isNotApple() && micEnabled){
+      restartMicSafe();
     }
 
     // 🔒 idempotence dure
@@ -187,9 +204,6 @@ function interruptAI(){
 
     console.log("interruptAI:");
     console.log("aiSpeaking: ", aiSpeaking);
-
-    //console.log("assistantVisible: " + assistantVisible);
-    //console.log("assistantPending: " + assistantPending);
 
     // ===============================
     // 1️⃣ marquer interruption AVANT tout
@@ -205,8 +219,6 @@ function interruptAI(){
     // 2️⃣ snapshot EXACT de ce qui a été parlé
     // ===============================
     const snapshot = cleanAssistantText(assistantVisible || assistantPending);
-    //const snapshot = cleanAssistantText(assistantVisible); //
-    //assistantPending = assistantVisible; // 🔥 aligne la vérité  ???
 
     // ===============================
     // 3️⃣ STOP réseau IMMÉDIAT
@@ -215,7 +227,6 @@ function interruptAI(){
         try{ xhrLLM.abort(); }catch(e){}
         xhrLLM = null;
     }
-
     aiStreaming = false;
 
     // ===============================
@@ -295,12 +306,15 @@ function playTTS(){
 
         aiSpeaking = true;
 
-        // ✅ append SEULEMENT si toujours valide
-        //console.log("assistantVisible 1: " + assistantVisible);
-        //console.log("u.onstart item.raw: " + item.raw);
-        assistantVisible += item.raw;
-        //console.log("assistantVisible 2: " + assistantVisible);
+        // 🔥 SEMI-DUPLEX
+        if(isNotApple() && micEnabled){
+            try{
+                recognition.abort(); // mieux que stop
+            }catch(e){}
+            recognitionRunning = false;
+        }
 
+        assistantVisible += item.raw;
         renderChat();
     };
 
@@ -312,13 +326,21 @@ function playTTS(){
         aiSpeaking = false;
         lastTTSEnd = Date.now();
 
+        // réactivation micro
+        if(isNotApple() && micEnabled){
+            setTimeout(()=>{
+                try{ recognition.start(); }
+                catch(e){}
+            }, 150);
+        }
+
         // 🔒 ne rien relancer si interrompu
         if(myGen !== aiGeneration) return;
         if(assistantFrozen) return;
         if(aiWasInterrupted) return;
         if(ttsKilledGeneration === myGen) return;
 
-        // ▶️ continuer la file
+        // continuer la file
         playTTS();
     };
 
@@ -347,7 +369,7 @@ function playTTS(){
 }
 //// fin playTTS
 
-//////
+//////////////////////////////////////
 function speakChunk(){
 
     if(aiWasInterrupted) return;
@@ -370,6 +392,7 @@ function speakChunk(){
     playTTS();
 }
 
+/////////////////////////////////////
 ////// push user dans  chatBuffer
 function addUser(text){
     if ( chatBuffer.length > maxChatBuffer ) chatBuffer.shift();
@@ -377,25 +400,33 @@ function addUser(text){
     renderChat();
 }
 
-/*////// ENVOI UTILISATEUR
-function submitUser(text){
-    if(aiBusy) return;
-    aiBusy = true;
-
-    text = text.trim().replace(/\s+/g," "); // bonus filtre écho
-
-    if ( aiWasInterrupted ) text = "INTERRUPTION: --> " + text;
-    else text = "--> " + text;
-    addUser(text);
-    sendToAI_php(chatBuffer, "sysM");
-}*/
-
-//////
+///////////////////////////////////////
 function isInternalLeak(text){
     return text.startsWith("INTERRUPTION: -->")
         && looksLikeEcho(text.replace("INTERRUPTION: -->","").trim());
 }
 
+/////////////////////////////////////////
+function restartMicSafe(){
+    if(!micEnabled) return;
+
+    setTimeout(()=>{
+        try{ recognition.start(); }
+        catch(e){}
+    }, 250);
+}
+
+//////
+/*let isLoading = false;
+let timer;
+
+function submitUser(text) {
+  if (isLoading) return;
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+      doSubmitUser(text);
+  }, 500); // 500ms minimum
+}*/
 /////////////////////////////////////////////////////////////////
 async function submitUser(text) {   //    S U B M I T   U S E R ***********
 /////////////////////////////////////////////////////////////////
@@ -415,6 +446,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
     try {
 
+        console.log("param de classifyUserQuestion(text): ", text);
         const classification = await classifyUserQuestion(text);
         console.log("is_weather: ", classification.is_weather);
 
@@ -422,8 +454,6 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         // 🌦️ CAS MÉTÉO
         // ===============================
         if (classification.is_weather === "oui") {
-            console.log( "is_hourly: ", classification.is_hourly);
-            console.log( "is_today: ", classification.is_today);
             let wData = "";
             let weather = "";
             const coords = await fetchCoordinatesData(classification.location);
@@ -509,6 +539,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
         addUser(text);
         sendToAI_php(chatBuffer, "userM");
     }
+
 }
 
 
@@ -531,7 +562,7 @@ function flushTTS(){
     playTTS();
 }
 
-//////
+////////////////////////////////
 function renderChat() {
     let out = "";
     for (let m of chatBuffer) {
@@ -547,9 +578,6 @@ function renderChat() {
         out += "<-- 🤖 \n" + assistantVisible + "\n";
     }
 
-    // supprimer doublon dans #chat ???
-    out = supDoublons(out);
-
     const chat = $("#chat")[0];
     //const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
     $("#chat").val(out);
@@ -562,24 +590,7 @@ function renderChat() {
     }*/
 }
 
-//////
-function supDoublons(out) {
-  return out;
-/*  let input = out;
-  // supprimer doublon dans #chat
-  const sansDoublon = out.split('\n').slice(0, -1).join('\n'); // sup der ligne
-  if ( sansDoublon != "" ) {
-    if ( out.split('\n').pop() == sansDoublon.split('\n').pop() ) {
-      out = sansDoublon;
-      console.log("Doublon trouvé. out: ", out);
-      console.log("en entrée: ", input);
-    }
-  }
-  return out;*/
-}
-
-
-//////
+////////////////////////////////////////
 function findCutPoint(text){
 
     if(!text) return -1;
@@ -595,14 +606,14 @@ function findCutPoint(text){
         lastStrong = m.index + 1;
     }
     if(lastStrong !== -1) {
-      console.log("-------->>> strong cut");
+      //console.log("-------->>> strong cut");
       return lastStrong;
     }
 
     //  saut de ligne = forte
     let nl = text.lastIndexOf("\n");
     if(nl > 40) {
-      console.log("-------->>> cut saut de ligne");
+      //console.log("-------->>> cut saut de ligne");
       return nl + 1;
     }
 
@@ -613,7 +624,7 @@ function findCutPoint(text){
     for(let p of mid){
         let idx = text.lastIndexOf(p);
         if(idx > 30) {
-          console.log("-------->>> moyenne cut");
+          //console.log("-------->>> moyenne cut");
           return idx + 1;
         }
     }
@@ -624,7 +635,7 @@ function findCutPoint(text){
     if(text.length > 60){
         let c = text.lastIndexOf(",");
         if(c > 30) {
-          console.log("-------->>> virgule agressive (clé barge-in)");
+          //console.log("-------->>> virgule agressive (clé barge-in)");
           return c + 1;
         }
     }
@@ -639,7 +650,7 @@ function findCutPoint(text){
         // coupe au dernier espace propre
         let space = text.lastIndexOf(" ");
         if(space > 40) {
-          console.log("-------->>> cut au dernier espace propre");
+          //console.log("-------->>> cut au dernier espace propre");
           return space;
         }
     }
@@ -647,7 +658,7 @@ function findCutPoint(text){
     return -1;
 }
 
-//////
+///////////////////////////////////////
 function formatTTS(text){
 
     return text
@@ -693,25 +704,6 @@ function cleanAssistantText(text){
 }
 
 //////
-/*function commitAssistant(text){
-
-    if(assistantMessageCommitted) return;
-    //if(assistantFrozen && aiWasInterrupted === false) return;
-
-    const clean = (text || "").trim();
-    if(!clean) return;
-
-    if ( chatBuffer.length > maxChatBuffer ) chatBuffer.shift();
-    chatBuffer.push({
-        role: "assistant",
-        content: clean
-    });
-
-    assistantMessageCommitted = true;
-    assistantPending = "";
-}*/
-
-//////
 function commitAssistant(text){
 
   if(assistantMessageCommitted) return;
@@ -739,7 +731,7 @@ function commitAssistant(text){
     assistantPending = "";
 }
 
-//////
+///////////////////////////////////////////
 function normalizeEchoText(t){
     return (t || "")
         .toLowerCase()
@@ -974,7 +966,7 @@ function startSilenceWatcher(){ // couper le mic après 1mn de silence
         if(!micEnabled) return;
 
         const silence = Date.now() - lastSpeechTime;
-        if(silence > 60000){   // 1 minute
+        if(silence > 240000){   // 4 minute
             console.log("Micro coupé : 1 minute de silence");
             clearInterval(silenceWatcher);
             silenceWatcher = null;
@@ -986,7 +978,7 @@ function startSilenceWatcher(){ // couper le mic après 1mn de silence
 }
 
 //////
-function startRestartWatcher(){ // couper le mic après 1mn de silence
+function startRestartWatcher(){ // restart 20 mm inactivité
 
     if(restartWatcher) clearInterval(restartWatcher);
     restartWatcher = setInterval( () => {
@@ -1048,7 +1040,7 @@ $(document).ready(function () {
     micEnabled = !micEnabled;
 
     if(micEnabled){
-      recognition.start();
+      try { recognition.start(); }catch(e){}
       lastSpeechTime = Date.now();
       startSilenceWatcher();
     }else{
