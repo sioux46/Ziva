@@ -50,7 +50,9 @@ if (empty($_SESSION['csrf'])) {
     <!----------------------------------------------------------------------->
     <!--                          chatTrace    ------------------------------>
     <div class="container p-3 d-flex flex-column" style="height: 85vh;">
-      <div id="version"></div>
+      <div class="d-flex justify-content-end mb-2">
+        <div id="version"></div>
+      </div>
       <textarea id="chat" class="form-control p-3 mb-2 flex-grow-1" readonly></textarea>
       <!---->
       <div class="mt-2 d-flex">

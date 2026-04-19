@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.04.15.4";
+var zivaVersion = "v6.04.19.1";
 
 let chatBuffer = [];
 let maxChatBuffer = 11;
@@ -53,7 +53,7 @@ let iosAudioUnlocked = false;
 
 //const synth = window.speechSynthesis;
 
-//                                         R E C O G N I T I O N
+//                       ***************  R E C O G N I T I O N   *******************
 
 let recognitionRunning = false;
 
@@ -271,9 +271,9 @@ function interruptAI(){
     renderChat();
 }
 
-/////////////////////////                         S Y N T H E S I S
+//                      ****************  S Y N T H E S I S  ******************
 
-//////////////////////////////////////////////////      p l a y TTS
+////////////////////////////      p l a y TTS
 function playTTS(){
 
     const myGen = aiGeneration;
@@ -290,9 +290,10 @@ function playTTS(){
     if(ttsQueue.length === 0) return;
 
     const item = ttsQueue.shift();
+
     if(!item) return;
 
-    const u = new SpeechSynthesisUtterance(item.tts);
+    const u = new SpeechSynthesisUtterance(supIconesUnicode(item.tts));
 
     u.lang  = "fr-FR";
     u.rate  = 1;
@@ -490,7 +491,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
 
             console.log("weatherData: ", weatherData);
             console.log("weather: ", weather);
-            const weatherPrompt = `
+            let weatherPrompt = `
               Date du jour: ${Date()}.
               Voici les données météo en JSON :
               ${JSON.stringify(weather)}.
@@ -505,6 +506,7 @@ async function submitUser(text) {   //    S U B M I T   U S E R ***********
               - Ne pas dire "de 6 degrés minimum à 10 degrés maximum" mais "de 6 degrés à 10 degrés".
               - Pour la direction du vent, ne pas donner les degrés mais les points cardinaux.
               - Ne pas parler du temps qu'il a fait avant l'heure actuelle.
+              - Utiliser des icônes unicode pour illustrer les conditions météo.
             `;
 
             if (aiWasInterrupted) text = "INTERRUPTION: --> " + text;
@@ -586,7 +588,9 @@ function renderChat() {
 
     const chat = $("#chat")[0];
     //const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
+    if ( aiWasInterrupted ) out += "\nINTERRUPTION: -->";
     $("#chat").val(out);
+
     chat.scrollTo({
       top: chat.scrollHeight,
       behavior: "smooth"
@@ -1033,6 +1037,7 @@ function sendTextInput(){
 }
 
 // ******************************************************************
+// ******************************************************************
 // *********************************************   $ready$  R E A D Y
 $(document).ready(function () {
 
@@ -1117,6 +1122,13 @@ $("#textInput").focus();
     getLocation();   // pour charger geoCoor
     //$("#showTravellerButton").trigger("click");  // show traveller display on startup
 }, 1000);
+
+//---------------------
+$(window).focus( function() {
+  startSilenceWatcher(); // start mic listening interval
+  startRestartWatcher(); // start unactivity interval
+});
+
 
 //----------------------
 //if ( isNotApple() ) $("#cutBtn").prop("disabled", false);

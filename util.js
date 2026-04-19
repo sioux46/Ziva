@@ -6,7 +6,8 @@
 //////
 async function fetchCoordinatesData(location) {
 
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=fr&format=json`;
+    let loc = location.replace(/,.*/, ""); // ne garder que le premier mot
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(loc)}&count=1&language=fr&format=json`;
 
     try {
         const res = await fetch(url);
@@ -19,13 +20,16 @@ async function fetchCoordinatesData(location) {
             };
         }
     } catch(e){
-        console.warn("Erreur géocoding:", e);
+        console.warn("Erreur latitude/longitude: géocoding-api:", e);
+        //
+
     }
 
     return { lat: geoCoor.latitude, lon: geoCoor.longitude }; // position actuelle
     //return obtenirPosition(); // geoloc de l'apareil
 }
 
+///////
 async function fetchWeatherData(params) {
   const query = new URLSearchParams(params).toString();
 
@@ -338,6 +342,18 @@ async function getBigCountries() {
     return [];
   }
 }
+
+//////
+function supIconesUnicode(chaine) {
+  // Expression régulière pour supprimer les emojis et symboles Unicode
+  const regex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{24C2}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{03030}\u{200D}\u{20E3}\u{FE0F}\u{1F3FB}-\u{1F3FF}]/gu;
+  return chaine.replace(regex, '');
+}
+
+// Exemple d'utilisation
+//const texteAvecEmojis = "Bonjour 😊 ! Comment ça va ? 🚀";
+//const texteSansEmojis = supprimerIconesUnicode(texteAvecEmojis);
+//console.log(texteSansEmojis); // "Bonjour  ! Comment ça va ? "
 
 //*********************************************************************
 //************************  S N C F  **********************************
