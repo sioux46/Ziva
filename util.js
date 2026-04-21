@@ -350,10 +350,151 @@ function supIconesUnicode(chaine) {
   return chaine.replace(regex, '');
 }
 
-// Exemple d'utilisation
-//const texteAvecEmojis = "Bonjour 😊 ! Comment ça va ? 🚀";
-//const texteSansEmojis = supprimerIconesUnicode(texteAvecEmojis);
-//console.log(texteSansEmojis); // "Bonjour  ! Comment ça va ? "
+///////////////////////////   Identification  ///////////////////////////////
+//////
+const API_URL = "check_user.php";
+const STORAGE_KEY = "user_session";
+const SESSION_DURATION = 1000 * 60 * 60 * 8; // 8h
+
+let isAuthenticated = false;
+let loginModal;
+
+// --- Init modal
+$(document).ready(function () {
+  loginModal = new bootstrap.Modal(
+    document.getElementById('loginModal'),
+    {
+      backdrop: 'static', // empêche clic extérieur
+      keyboard: false     // empêche touche ESC
+    }
+  );
+  initSession();
+
+  $("#loginSubmit").on("click", submitLogin);
+  $("#loginInput").on("keypress", function(e){
+    if(e.which === 13) submitLogin();
+  });
+
+  $("#loginItem").on("click", showLoginModal);
+  $("#logoutItem").on("click", logout);
+});
+
+// --- Vérification utilisateur
+function checkUser(userId) {
+  return fetch(API_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ user_id: userId })
+  }).then(res => res.json());
+}
+
+// --- Init session
+function initSession() {
+  const session = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+  if (session && session.user && session.expiry > Date.now()) {
+    checkUser(session.user).then(res => {
+      if (res.success) {
+        isAuthenticated = true;
+        updateUI(session.user);
+      } else {
+        logout();
+        showLoginModal();
+      }
+    });
+  } else {
+    logout();
+    showLoginModal();
+  }
+}
+
+// --- Login submit
+function submitLogin() {
+  const userId = $("#loginInput").val().trim();
+  if (!userId) return;
+
+  checkUser(userId).then(res => {
+    if (res.success) {
+      isAuthenticated = true;
+
+      $("#loginInput").blur();
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        user: userId,
+        expiry: Date.now() + SESSION_DURATION
+      }));
+
+      updateUI(userId);
+      loginModal.hide();
+      bootstrap.Offcanvas.getInstance(document.getElementById('sideMenu'))?.hide();
+
+    } else {
+      $("#loginError").removeClass("d-none");
+    }
+  });
+}
+
+// 🔥 sécurité
+$('#loginModal').on('hide.bs.modal', function (e) {
+  if (!isAuthenticated) {
+    e.preventDefault();
+  }
+});
+
+// --- Logout
+function logout() {
+  localStorage.removeItem(STORAGE_KEY);
+
+  // reset état auth
+  isAuthenticated = false;
+
+  updateUI(null);
+
+  // 🔥 relancer immédiatement le login
+  showLoginModal();
+}
+
+// --- UI
+function updateUI(userId) {
+  if (userId) {
+    $("#loginItem").addClass("d-none");
+    $("#logoutItem").removeClass("d-none");
+    $("#version").text(userId + "  " + zivaVersion);
+
+    $("body").removeClass("locked");
+
+  } else {
+    $("#loginItem").removeClass("d-none");
+    $("#logoutItem").addClass("d-none");
+    $("#version").text("Non connecté" + "  " + zivaVersion);
+
+    $("body").addClass("locked");
+  }
+}
+
+// --- Show modal
+function showLoginModal() {
+  $("#loginError").addClass("d-none");
+  $("#loginInput").val("");
+  loginModal.show();
+}
+
+// --- expiration automatique
+setInterval(() => {
+  const session = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+  if (session && session.expiry < Date.now()) {
+    logout();
+  }
+}, 60000); // check toutes les minutes
+
+/*// --- Redonner le focus après fermeture
+$('#loginModal').on('hidden.bs.modal', function () {
+  $("#menuBtn").trigger("focus"); // ou autre élément visible
+});*/
+
+//
+
 
 //*********************************************************************
 //************************  S N C F  **********************************

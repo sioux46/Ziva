@@ -72,4 +72,26 @@ button.active {
   box-shadow: none;
 }
 
+#menuBtn {
+  border: 0 !important;
+}
+
+#sideMenu {
+  width: 260px;
+  background-color: #444;
+}
+
+#sideMenu:hover {
+  cursor: pointer;
+}
+
+.locked {
+  pointer-events: none;
+  user-select: none;
+}
+
+.modal {
+  pointer-events: auto !important;
+}
+
 /*# sourceMappingURL=index.css.map */

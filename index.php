@@ -49,8 +49,17 @@ if (empty($_SESSION['csrf'])) {
     <script src="mobileBUGFix.js"></script>
     <!----------------------------------------------------------------------->
     <!--                          chatTrace    ------------------------------>
+    <!-- Menu contextuel Bootstrap -->
+    <!--<div class="container mt-5">
+      <div id="contextMenu" class="dropdown-menu show">
+        <button class="dropdown-item" onclick="alert('Copier')">Copier</button>
+        <button class="dropdown-item" onclick="alert('Coller')">Coller</button>
+        <button class="dropdown-item" onclick="alert('Supprimer')">Supprimer</button>
+      </div>
+    </div>-->
     <div class="container p-3 d-flex flex-column" style="height: 85vh;">
-      <div class="d-flex justify-content-end mb-2">
+      <div class="d-flex justify-content-between align-items-center mb-2 mt-2">
+        <button id="menuBtn" class="btn btn-outline-secondary">☰</button>
         <div id="version"></div>
       </div>
       <textarea id="chat" class="form-control p-3 mb-2 flex-grow-1" readonly></textarea>
@@ -67,23 +76,45 @@ if (empty($_SESSION['csrf'])) {
         <button id="trashBtn" class="btn ms-auto">🗑️</button>
       </div>
     </div>
+    <!--      sideMenu      -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="sideMenu">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title">Menu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="list-group">
+          <li id="loginItem" class="list-group-item">🔑 Se connecter</li>
+          <li id="logoutItem" class="list-group-item d-none">🚪 Se déconnecter</li>          <li class="list-group-item">Accueil</li>
+          <li class="list-group-item">Profil</li>
+          <li class="list-group-item">Paramètres</li>
+          <li class="list-group-item">Aide</li>
+        </ul>
+      </div>
+    </div>
+    <!--      Modale Bootstrap      -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
 
-    <!--<div id="chatTraceContainer" class="container-fluid">
-      <div class="row ms-1 me-1 mt-2 pe-2 ps-2">
-        <div class="col-4">
-          <textarea id="question2Textarea" autofocus class="form-control" placeholder="Tapez votre requête ici..."></textarea>
-          <div class="d-flex flex-row-reverse">
-            <button id="question2Button" class="btn" type="button">
-              <img src="icons/forward.svg" width=36>
-            </button>
+          <div class="modal-header">
+            <h5 class="modal-title">Connexion</h5>
+          </div>
+
+          <div class="modal-body">
+            <input id="loginInput" type="text" class="form-control" placeholder="Identifiant">
+            <div id="loginError" class="text-danger mt-2 d-none">
+              Identifiant invalide
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button id="loginSubmit" class="btn btn-primary">Se connecter</button>
           </div>
 
         </div>
-        <div class="col-8">
-          <textarea id="chatTrace" autofocus class="form-control" value""></textarea>
-        </div>
       </div>
-    </div>-->
-
+    </div>
+    
   </body>
 </html>

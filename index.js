@@ -4,7 +4,7 @@
 
 //
 // Nomenclature : [Années depuis 2020].[Mois].[Jour].[Nombre dans la journée]
-var zivaVersion = "v6.04.19.1";
+var zivaVersion = "v6.04.21.2";
 
 let chatBuffer = [];
 let maxChatBuffer = 11;
@@ -1043,6 +1043,56 @@ $(document).ready(function () {
 
   $("#version").text(zivaVersion);
 
+  //----------------  M E N U
+  const menuBtn = document.getElementById('menuBtn');
+  const sideMenu = new bootstrap.Offcanvas(document.getElementById('sideMenu'));
+
+  menuBtn.addEventListener('click', () => {
+    sideMenu.toggle();
+  });
+
+  /*//*****************************      menu chat        ************
+  document.addEventListener('DOMContentLoaded', () => {
+    const textInput = document.getElementById('chat');
+    const contextMenu = document.getElementById('contextMenu');
+    let pressTimer;
+
+    // Détection de l'appui long
+    textInput.addEventListener('mousedown', (e) => {
+      pressTimer = setTimeout(() => {
+        // Affiche le menu à côté du champ de texte
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = `${e.clientX}px`;
+        contextMenu.style.top = `${e.clientY}px`;
+      }, 1000); // 1 seconde pour un appui long
+    });
+
+    // Annule le timer si l'utilisateur relâche avant 1 seconde
+    textInput.addEventListener('mouseup', () => {
+      clearTimeout(pressTimer);
+    });
+
+    // Cache le menu si on clique ailleurs
+    document.addEventListener('click', (e) => {
+      if (e.target !== textInput) {
+        contextMenu.style.display = 'none';
+      }
+    });
+
+    // Pour les appareils tactiles
+    textInput.addEventListener('touchstart', (e) => {
+      pressTimer = setTimeout(() => {
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = `${e.touches[0].clientX}px`;
+        contextMenu.style.top = `${e.touches[0].clientY}px`;
+      }, 1000);
+    });
+
+    textInput.addEventListener('touchend', () => {
+      clearTimeout(pressTimer);
+    });
+  });*/
+
   //////////////////////////////      micro
   //if ( $("#micBtn").hasClass("btn-danger") ) micEnabled = true;
 
@@ -1078,7 +1128,7 @@ $(document).ready(function () {
 
 //-----------------------
   $("#trashBtn").on("click", () => {
-    $("#chat").val("");
+    $("#chat").val(">>>>>>  Nouvel conversation  <<<<<<");
     chatBuffer = [];
     if( micEnabled /*&& isAndroid()*/ ){
       setTimeout(()=>{
@@ -1099,7 +1149,7 @@ $("#textInput").on("keydown", function(e){
     sendTextInput();
   }
 });
-$("#textInput").focus();
+//$("#textInput").focus();
 
 //--------------------- effet click/touch
 ["sendBtn", "cutBtn", "trashBtn"].forEach(id => {

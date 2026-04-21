@@ -73,3 +73,44 @@ button.active {
   opacity: 1;
   box-shadow: none;
 }
+
+#menuBtn {
+  border: 0 !important;
+}
+
+//@media (max-width: 576px) {
+#sideMenu {
+  width: 260px;
+  background-color: #444;
+}
+//}
+
+#sideMenu:hover {
+  cursor: pointer;
+}
+
+.locked {
+  pointer-events: none;
+  user-select: none;
+}
+
+.modal {
+  pointer-events: auto !important;
+}
+
+//#sideMenu {
+//width: 280px; /* largeur fixe */
+//max-width: 80%; /* sécurité sur petits écrans */
+//--bs-offcanvas-transition: transform 0.35s ease-in-out;
+//}
+
+// à supprimer ???
+.offcanvas-start {
+  //transform: translateX(-100%);
+  //transition: transform 0.35s ease-in-out;
+}
+
+.offcanvas-start.show {
+  //transform: translateX(0);
+}
+// FIN à supprimer ???*/
